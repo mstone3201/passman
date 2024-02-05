@@ -5,8 +5,9 @@ project(passman)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-find_package(OpenSSL 3.0 REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(asio REQUIRED)
 
 add_executable(passman src/main.cpp)
 
-target_link_libraries(passman PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(passman PRIVATE OpenSSL::SSL OpenSSL::Crypto asio::asio)
