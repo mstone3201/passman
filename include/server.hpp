@@ -13,6 +13,7 @@ namespace passman {
         server& operator=(const server&) = delete;
 
         void run();
+        void stop();
         
     private:
         void accept();

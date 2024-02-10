@@ -15,6 +15,11 @@ namespace passman {
         io_context.run();
     }
 
+    void server::stop() {
+        // Make run() stop processing callbacks and return
+        io_context.stop();
+    }
+
     void server::accept() {
         acceptor.async_accept(
             [this](
@@ -22,8 +27,8 @@ namespace passman {
                 asio::ip::tcp::socket socket
             ) {
                 if(!error) {
-                    // This connection will be destroyed automatically
-                    // when its callbacks finish
+                    // This connection will be destroyed automatically when its
+                    // callbacks finish
                     connection::create(std::move(socket));
                 }
 
