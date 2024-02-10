@@ -1,7 +1,6 @@
 #include "server.hpp"
 
-// TODO: remove debug print statements
-#include <iostream>
+#include "connection.hpp"
 
 namespace passman {
     server::server(std::uint16_t port) :
@@ -18,12 +17,14 @@ namespace passman {
 
     void server::accept() {
         acceptor.async_accept(
-            [this](const asio::error_code& error, asio::ip::tcp::socket socket) {
+            [this](
+                const asio::error_code& error,
+                asio::ip::tcp::socket socket
+            ) {
                 if(!error) {
-                    std::cout << "Connection" << std::endl;
-                    
-                    // TODO: cleanup
-                    new connection(std::move(socket));
+                    // This connection will be destroyed automatically
+                    // when its callbacks finish
+                    connection::create(std::move(socket));
                 }
 
                 // Wait for the next connection

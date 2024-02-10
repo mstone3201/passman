@@ -14,5 +14,8 @@ add_executable(passman
     src/connection.cpp
 )
 
-target_link_libraries(passman PRIVATE OpenSSL::SSL OpenSSL::Crypto asio::asio)
+target_link_libraries(passman
+    PRIVATE OpenSSL::SSL OpenSSL::Crypto 
+    PRIVATE asio::asio
+)
 target_include_directories(passman PRIVATE include)

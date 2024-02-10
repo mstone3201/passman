@@ -4,13 +4,12 @@
 
 #include "include_asio.hpp"
 
-#include "connection.hpp"
-
 namespace passman {
     class server {
     public:
         explicit server(std::uint16_t port);
         server(const server&) = delete;
+
         server& operator=(const server&) = delete;
 
         void run();
