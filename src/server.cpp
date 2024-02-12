@@ -6,35 +6,29 @@ namespace passman {
     server::server(std::uint16_t port) :
         acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
     {
-        accept();
+        asio::co_spawn(io_context, listen(), asio::detached);
     }
 
     void server::run() {
         // Run all async operations and wait for them to finish
-        // At minimum we are always waiting to accept a new connection
+        // At minimum listen() will always be running
         io_context.run();
     }
 
     void server::stop() {
-        // Make run() stop processing callbacks and return
+        // Make run() return
         io_context.stop();
     }
 
-    void server::accept() {
-        acceptor.async_accept(
-            [this](
-                const asio::error_code& error,
-                asio::ip::tcp::socket socket
-            ) {
-                if(!error) {
-                    // This connection will be destroyed automatically when its
-                    // callbacks finish
-                    connection::create(std::move(socket));
-                }
-
-                // Wait for the next connection
-                accept();
-            }
-        );
+    asio::awaitable<void> server::listen() {
+        while(true) {
+            try {
+                // This connection will be destroyed automatically when its
+                // coroutines finish
+                connection::create(
+                    co_await acceptor.async_accept(asio::use_awaitable)
+                );
+            } catch(...) {}
+        }
     }
 }

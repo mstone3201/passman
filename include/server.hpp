@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 #include "include_asio.hpp"
 
 namespace passman {
@@ -16,7 +14,7 @@ namespace passman {
         void stop();
         
     private:
-        void accept();
+        asio::awaitable<void> listen();
 
         asio::io_context io_context;
         asio::ip::tcp::acceptor acceptor;

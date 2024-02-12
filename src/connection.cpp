@@ -21,13 +21,12 @@ namespace passman {
         };
 
         // Create a wrapper and then let it decay to a connection
-        std::shared_ptr<connection> conn(
-            std::make_shared<wrapper>(std::move(socket))
-        );
-        // Start read/write callback chain
-        // When these callbacks end, all shared_ptr references will be out of
+        std::shared_ptr<connection> conn(std::make_shared<wrapper>(std::move(socket)));
+
+        // Start read/write chain
+        // When this coroutine ends, all shared_ptr references will be out of
         // scope and this connection will be destroyed
-        conn->read_request();
+        asio::co_spawn(socket.get_executor(), conn->handle_request(), asio::detached);
 
         return conn;
     }
@@ -42,39 +41,36 @@ namespace passman {
         std::cout << "Connection closed" << std::endl;
     }
 
-    void connection::read_request() {
+    asio::awaitable<void> connection::handle_request() {
+        // This adds a reference to this connection, which keeps it alive at
+        // least until this coroutine returns
         std::shared_ptr<connection> extend_lifetime(shared_from_this());
-        // TODO: not safe, need to handle incorrect requests
-        asio::async_read_until(socket, asio::dynamic_buffer(buffer), HTTP_DELIM,
-            [this, extend_lifetime](
-                const asio::error_code& error,
-                std::size_t size
-            ) {
-                if(!error) {
-                    // Request read, now write a response
-                    std::cout << "Request received" << std::endl;
-                    std::cout << buffer << std::endl;
 
-                    write_response();
-                }
-            }
-        );
-    }
+        // Read request
 
-    void connection::write_response() {
-        std::shared_ptr<connection> extend_lifetime(shared_from_this());
-        asio::async_write(socket, asio::buffer(TEST_RESPONSE),
-            [this, extend_lifetime](
-                const asio::error_code& error,
-                std::size_t size
-            ) {
-                if(!error) {
-                    // Response sent, now close socket
-                    std::cout << "Response sent" << std::endl;
-                    
-                    socket.shutdown(asio::ip::tcp::socket::shutdown_both);
-                }
-            }
-        );
+        std::string buffer;
+        try {
+            // TODO: not safe, need to handle incorrect requests
+            std::size_t size = co_await asio::async_read_until(socket,
+                asio::dynamic_buffer(buffer), HTTP_DELIM, asio::use_awaitable);
+        } catch(...) {
+            co_return;
+        }
+
+        std::cout << "Request received" << std::endl;
+        std::cout << buffer << std::endl;
+
+        // Write response
+
+        try {
+            co_await asio::async_write(socket, asio::buffer(TEST_RESPONSE),
+                asio::use_awaitable);
+        } catch(...) {
+            co_return;
+        }
+
+        std::cout << "Response sent" << std::endl;
+
+        socket.shutdown(asio::ip::tcp::socket::shutdown_both);
     }
 }

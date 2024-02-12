@@ -1,8 +1,5 @@
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include "include_asio.hpp"
 
 namespace passman {
@@ -19,11 +16,10 @@ namespace passman {
 
         connection& operator=(const connection&) = delete;
 
-        void read_request();
-        void write_response();
+        // handle_request() calls shared_from_this(), so it must not be called
+        // from within the constructor
+        asio::awaitable<void> handle_request();
 
         asio::ip::tcp::socket socket;
-
-        std::string buffer;
     };
 }
