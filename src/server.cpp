@@ -26,8 +26,7 @@ namespace passman {
                 // This connection will be destroyed automatically when its
                 // coroutines finish
                 connection::create(
-                    co_await acceptor.async_accept(asio::use_awaitable)
-                );
+                    co_await acceptor.async_accept(asio::use_awaitable));
             } catch(...) {}
         }
     }

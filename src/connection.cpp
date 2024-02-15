@@ -1,9 +1,10 @@
 #include "connection.hpp"
 
+#include "http_parse.hpp"
+
 // TODO: remove debug print statements
 #include <iostream>
 
-constexpr std::string_view HTTP_DELIM("\r\n\r\n");
 constexpr std::string_view TEST_RESPONSE("HTTP/1.1 200 OK\r\n\r\n\
     <html>Hello world! <a href=\"/index.html\">here</a></html>\r\n\r\n");
 
@@ -21,12 +22,13 @@ namespace passman {
         };
 
         // Create a wrapper and then let it decay to a connection
-        std::shared_ptr<connection> conn(std::make_shared<wrapper>(std::move(socket)));
-
+        std::shared_ptr<connection> conn(
+            std::make_shared<wrapper>(std::move(socket)));
         // Start read/write chain
         // When this coroutine ends, all shared_ptr references will be out of
         // scope and this connection will be destroyed
-        asio::co_spawn(socket.get_executor(), conn->handle_request(), asio::detached);
+        asio::co_spawn(socket.get_executor(), conn->handle_request(),
+            asio::detached);
 
         return conn;
     }
@@ -48,17 +50,42 @@ namespace passman {
 
         // Read request
 
-        std::string buffer;
-        try {
-            // TODO: not safe, need to handle incorrect requests
-            std::size_t size = co_await asio::async_read_until(socket,
-                asio::dynamic_buffer(buffer), HTTP_DELIM, asio::use_awaitable);
-        } catch(...) {
-            co_return;
-        }
+        http::request http_request;
+        // Scope to control the lifetime of parsing objects
+        {
+            std::array<char, 2048> buffer;
+            std::string_view buffer_view;
+            http::parser_coroutine parser = http::parse_request(buffer_view,
+                http_request);
 
-        std::cout << "Request received" << std::endl;
-        std::cout << buffer << std::endl;
+            while(true) {
+                try {
+                    // Read some data into the buffer
+                    const std::size_t size = co_await socket.async_read_some(
+                        asio::buffer(buffer), asio::use_awaitable);
+
+                    buffer_view = std::string_view(buffer.data(), size);
+                } catch(...) {
+                    co_return;
+                }
+
+                // Try to parse what we have
+                switch(parser.parse()) {
+                case http::parse_result::VALID:
+                    goto read_valid;
+                case http::parse_result::INVALID:
+                    co_return;
+                case http::parse_result::INCOMPLETE:
+                    break;
+                }
+            }
+
+            // Destroy parsing objects
+        }
+    read_valid:
+
+        std::cout << "Request for \"" << http_request.uri << "\" on thread "
+            << std::this_thread::get_id() << std::endl;
 
         // Write response
 
@@ -69,7 +96,8 @@ namespace passman {
             co_return;
         }
 
-        std::cout << "Response sent" << std::endl;
+        std::cout << "Response sent on thread " << std::this_thread::get_id()
+            << std::endl;
 
         socket.shutdown(asio::ip::tcp::socket::shutdown_both);
     }

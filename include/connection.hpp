@@ -6,8 +6,7 @@ namespace passman {
     class connection : public std::enable_shared_from_this<connection> {
     public:
         static std::shared_ptr<connection> create(
-            asio::ip::tcp::socket&& socket
-        );
+            asio::ip::tcp::socket&& socket);
     private:
         explicit connection(asio::ip::tcp::socket&& socket);
         connection(const connection&) = delete;
