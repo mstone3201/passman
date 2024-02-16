@@ -1,12 +1,10 @@
 #include "connection.hpp"
 
 #include "http_parse.hpp"
+#include "web.hpp"
 
 // TODO: remove debug print statements
 #include <iostream>
-
-constexpr std::string_view TEST_RESPONSE("HTTP/1.1 200 OK\r\n\r\n\
-    <html>Hello world! <a href=\"/index.html\">here</a></html>\r\n\r\n");
 
 namespace passman {
     std::shared_ptr<connection> connection::create(
@@ -90,7 +88,7 @@ namespace passman {
         // Write response
 
         try {
-            co_await asio::async_write(socket, asio::buffer(TEST_RESPONSE),
+            co_await asio::async_write(socket, asio::buffer(HTTP_INDEX_HTML),
                 asio::use_awaitable);
         } catch(...) {
             co_return;
