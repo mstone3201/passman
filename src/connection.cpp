@@ -32,9 +32,19 @@ namespace passman {
     }
 
     connection::connection(asio::ip::tcp::socket&& socket) :
-        socket(std::move(socket))
+        socket(std::move(socket)),
+        timer(connection::socket.get_executor())
     {
         std::cout << "Connection opened" << std::endl;
+        
+        // Start timeout timer
+        timer.expires_after(std::chrono::seconds(3));
+        timer.async_wait([this](const asio::error_code& error) {
+            // If the timer is cancelled it runs the handler immediately and is
+            // given an operation_aborted error
+            if(!error)
+                connection::socket.cancel();
+        });
     }
 
     connection::~connection() {
@@ -64,6 +74,8 @@ namespace passman {
 
                     buffer_view = std::string_view(buffer.data(), size);
                 } catch(...) {
+                    // If the timer times out, the socket is cancelled, which
+                    // throws and error and gets caught here
                     co_return;
                 }
 
@@ -81,6 +93,9 @@ namespace passman {
             // Destroy parsing objects
         }
     read_valid:
+
+        // Request fully recieved, cancel the timeout
+        timer.cancel();
 
         std::cout << "Request for \"" << http_request.uri << "\" on thread "
             << std::this_thread::get_id() << std::endl;

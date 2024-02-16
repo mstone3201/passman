@@ -20,5 +20,6 @@ namespace passman {
         asio::awaitable<void> handle_request();
 
         asio::ip::tcp::socket socket;
+        asio::steady_timer timer;
     };
 }

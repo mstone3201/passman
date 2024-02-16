@@ -4,4 +4,4 @@ Hello world!
 
 ## TODO:
 
-* Add timeout for connections (3s)
+* Have index.html request an encrypted message and decrypt it
