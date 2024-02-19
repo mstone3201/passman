@@ -45,13 +45,15 @@ namespace passman::http {
             parse_result result = parse_result::INCOMPLETE;
         };
 
-        parser_coroutine(std::coroutine_handle<promise_type> handle) :
-            handle(handle)
-        {}
+        explicit parser_coroutine(std::coroutine_handle<promise_type> handle) :
+            handle(handle) {}
+        parser_coroutine(const parser_coroutine&) = delete;
 
         ~parser_coroutine() {
             handle.destroy();
         }
+
+        parser_coroutine& operator=(const parser_coroutine&) = delete;
 
         parse_result parse() {
             if(!handle.done())
@@ -159,17 +161,15 @@ namespace passman::http {
 
         // Read until http delimiter
 
-        constexpr std::string_view http_delim = "\r\n\r\n";
-
-        std::string_view::const_iterator delim_it = http_delim.cbegin();
+        std::string_view::const_iterator delim_it = HTTP_DELIM.cbegin();
 
         while(true) {
             for(const char c : buffer_view) {
                 if(c == *delim_it) {
-                    if(++delim_it == http_delim.cend())
+                    if(++delim_it == HTTP_DELIM.cend())
                         goto delim_found;
                 } else
-                    delim_it = http_delim.cbegin();
+                    delim_it = HTTP_DELIM.cbegin();
             }
         
             bytes_read += buffer_view.size();

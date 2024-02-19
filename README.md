@@ -1,4 +1,4 @@
-# PassMan
+# passman
 
 Hello world!
 

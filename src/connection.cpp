@@ -97,20 +97,36 @@ namespace passman {
         // Request fully recieved, cancel the timeout
         timer.cancel();
 
-        std::cout << "Request for \"" << http_request.uri << "\" on thread "
-            << std::this_thread::get_id() << std::endl;
+        std::cout << "Request for \"" << http_request.uri << "\"" << std::endl;
 
         // Write response
 
+        http::response response;
+
+        const auto resource_it = http::uri_mapping.find(http_request.uri);
+        if(resource_it != http::uri_mapping.cend()) {
+            response.status = http::response_status::OK;
+
+            switch(resource_it->second) {
+            case http::resource::INDEX_HTML:
+                response.content = web::INDEX_HTML;
+                break;
+            case http::resource::INDEX_JS:
+                response.content = web::INDEX_JS;
+                break;
+            case http::resource::TEST:
+                response.content = "test message";
+                break;
+            }
+        }
+
         try {
-            co_await asio::async_write(socket, asio::buffer(HTTP_INDEX_HTML),
+            co_await asio::async_write(socket,
+                asio::buffer(std::move(http::get_response_str(response))),
                 asio::use_awaitable);
         } catch(...) {
             co_return;
         }
-
-        std::cout << "Response sent on thread " << std::this_thread::get_id()
-            << std::endl;
 
         socket.shutdown(asio::ip::tcp::socket::shutdown_both);
     }

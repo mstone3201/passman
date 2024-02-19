@@ -7,10 +7,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Read web files
-file(READ web/index.html WEB_INDEX_HTML)
-string(REPLACE "\n" "" WEB_INDEX_HTML ${WEB_INDEX_HTML})
+set(WEB_FILES "web/index.html" "web/index.js")
 
-configure_file(configure/web.hpp include/web.hpp ESCAPE_QUOTES)
+foreach(WEB_FILE ${WEB_FILES})
+    string(REGEX REPLACE "[/.]" "_" WEB_VAR "${WEB_FILE}")
+    string(TOUPPER "${WEB_VAR}" WEB_VAR)
+
+    file(READ "${WEB_FILE}" WEB_CONTENTS)
+    string(REPLACE "\n" "" WEB_CONTENTS "${WEB_CONTENTS}")
+
+    set(${WEB_VAR} "${WEB_CONTENTS}")
+endforeach()
+
+configure_file(configure/web.hpp include/web.hpp ESCAPE_QUOTES @ONLY)
 
 # Dependencies
 find_package(OpenSSL REQUIRED)

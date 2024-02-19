@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace passman {
-    constexpr std::string_view HTTP_INDEX_HTML = "HTTP/1.1 200 OK\r\n\r\n\
-        @WEB_INDEX_HTML@\r\n\r\n";
+namespace passman::web {
+    constexpr std::string_view INDEX_HTML = "@WEB_INDEX_HTML@";
+    constexpr std::string_view INDEX_JS = "@WEB_INDEX_JS@";
 }

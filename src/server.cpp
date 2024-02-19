@@ -4,6 +4,7 @@
 
 namespace passman {
     server::server(std::uint16_t port) :
+        io_context(1),
         acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
     {
         asio::co_spawn(io_context, listen(), asio::detached);
