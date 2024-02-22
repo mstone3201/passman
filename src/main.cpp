@@ -4,9 +4,10 @@
 
 int main(int argc, char* argv[]) {
     // Incorrect program arguments
-    if(argc != 2) {
-        std::cout << "usage: passman <port>" << std::endl
-            << "    <port>: integer in the range [0, 65535]" << std::endl;
+    if(argc != 3) {
+        std::cout << "usage: passman <port> <password>" << std::endl
+            << "    <port>: integer in the range [0, 65535]" << std::endl
+            << "    <password>: string" << std::endl;
         return 1;
     }
 
@@ -25,36 +26,43 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
+    std::string password(argv[2]);
+
     // Create the server
-    passman::server server(port);
-    
-    // Run the server in a separate thread
-    std::thread server_thread([&server]() {
-        server.run();
-    });
+    try {
+        passman::server server(port, password);
 
-    std::cout << "Started server on port " << port << std::endl;
+        // Run the server in a separate thread
+        std::thread server_thread([&server]() {
+            server.run();
+        });
 
-    // Handle console commands
-    while(true) {
-        // Read input from cin
-        std::string input;
-        std::getline(std::cin, input);
+        std::cout << "Started server on port " << port << std::endl;
 
-        if(input.empty()) continue;
+        // Handle console commands
+        while(true) {
+            // Read input from cin
+            std::string input;
+            std::getline(std::cin, input);
 
-        // Process commands
-        if(input == "stop") {
-            std::cout << "Stopping server" << std::endl;
+            if(input.empty()) continue;
 
-            server.stop();
-            break;
-        } else
-            std::cout << "Unknown command" << std::endl;
+            // Process commands
+            if(input == "stop") {
+                std::cout << "Stopping server" << std::endl;
+
+                server.stop();
+                break;
+            } else
+                std::cout << "Unknown command" << std::endl;
+        }
+
+        // Let the server finish up its work
+        server_thread.join();
+    } catch(const passman::bad_password&) {
+        std::cout << "password incorrect" << std::endl;
+        return 3;
     }
-
-    // Let the server finish up its work
-    server_thread.join();
 
     return 0;
 }

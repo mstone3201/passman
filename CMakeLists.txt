@@ -26,7 +26,8 @@ find_package(OpenSSL REQUIRED)
 find_package(asio REQUIRED)
 
 # Source files
-add_executable(passman src/main.cpp src/server.cpp src/connection.cpp)
+add_executable(passman src/main.cpp src/server.cpp src/connection.cpp
+    src/crypto.cpp)
 
 # Link and include
 target_link_libraries(passman PRIVATE OpenSSL::SSL OpenSSL::Crypto  asio::asio)

@@ -1,6 +1,11 @@
 {
   "dependencies": [
     "openssl",
-    "asio"
+    {
+      "name": "asio",
+      "features": [
+        "openssl"
+      ]
+    }
   ]
 }

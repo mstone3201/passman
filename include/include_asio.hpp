@@ -5,3 +5,4 @@
 #endif
 
 #include <asio.hpp>
+#include <asio/ssl.hpp>

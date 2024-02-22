@@ -6,9 +6,11 @@ namespace passman {
     class connection : public std::enable_shared_from_this<connection> {
     public:
         static std::shared_ptr<connection> create(
-            asio::ip::tcp::socket&& socket);
+            asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket);
+
     private:
-        explicit connection(asio::ip::tcp::socket&& socket);
+        explicit connection(
+            asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket);
         connection(const connection&) = delete;
 
         ~connection();
@@ -19,7 +21,7 @@ namespace passman {
         // from within the constructor
         asio::awaitable<void> handle_request();
 
-        asio::ip::tcp::socket socket;
+        asio::ssl::stream<asio::ip::tcp::socket> ssl_socket;
         asio::steady_timer timer;
     };
 }
