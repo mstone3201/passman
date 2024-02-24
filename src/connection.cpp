@@ -1,5 +1,6 @@
 #include "connection.hpp"
 
+#include "server.hpp"
 #include "http_parse.hpp"
 #include "web.hpp"
 
@@ -7,34 +8,37 @@
 #include <iostream>
 
 namespace passman {
-    std::shared_ptr<connection> connection::create(
+    std::shared_ptr<connection> connection::create(passman::server& server,
         asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket
     ) {
         // Wrap connection so that make_shared can access the constructor and
         // destructor. Here connection::create can see these since it is in the
         // scope of the class, despite them being private.
         struct wrapper : public connection {
-            wrapper(asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket) :
-                connection(std::move(ssl_socket)) {}
+            wrapper(passman::server& server,
+                asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket
+            ) :
+                connection(server, std::move(ssl_socket)) {}
         };
 
         // Create a wrapper and then let it decay to a connection
         std::shared_ptr<connection> conn(
-            std::make_shared<wrapper>(std::move(ssl_socket)));
+            std::make_shared<wrapper>(server, std::move(ssl_socket)));
         // Start read/write chain
         // When this coroutine ends, all shared_ptr references will be out of
         // scope and this connection will be destroyed
-        asio::co_spawn(ssl_socket.get_executor(), conn->handle_request(),
+        asio::co_spawn(server.io_context, conn->handle_request(),
             asio::detached);
 
         return conn;
     }
 
-    connection::connection(
+    connection::connection(passman::server& server,
         asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket
     ) :
+        server(server),
         ssl_socket(std::move(ssl_socket)),
-        timer(connection::ssl_socket.get_executor())
+        timer(server.io_context)
     {
         std::cout << "Connection opened" << std::endl;
         
@@ -65,7 +69,7 @@ namespace passman {
             co_await ssl_socket.async_handshake(
                 asio::ssl::stream<asio::ip::tcp::socket>::server,
                 asio::use_awaitable);
-        } catch(std::exception& e) {
+        } catch(...) {
             co_return;
         }
 
@@ -108,32 +112,14 @@ namespace passman {
         }
     read_valid:
 
-        std::cout << "Request for \"" << http_request.uri << "\"" << std::endl;
+        std::cout << "Request for resource "
+            << static_cast<int>(http_request.resource) << std::endl;
 
         // Write response
 
-        http::response response;
-
-        const auto resource_it = http::uri_mapping.find(http_request.uri);
-        if(resource_it != http::uri_mapping.cend()) {
-            response.status = http::response_status::OK;
-
-            switch(resource_it->second) {
-            case http::resource::INDEX_HTML:
-                response.content = web::INDEX_HTML;
-                break;
-            case http::resource::INDEX_JS:
-                response.content = web::INDEX_JS;
-                break;
-            case http::resource::TEST:
-                response.content = "test message";
-                break;
-            }
-        }
-
         try {
             co_await asio::async_write(ssl_socket,
-                asio::buffer(std::move(http::get_response_str(response))),
+                asio::buffer(get_response_str(http_request)),
                 asio::use_awaitable);
         } catch(...) {
             co_return;
@@ -151,5 +137,47 @@ namespace passman {
 
         // Request handled, cancel timeout
         timer.cancel();
+    }
+
+    std::string connection::get_response_str(
+        const http::request& http_request) const
+    {
+        // Response line
+
+        std::string response(http::HTTP_VERSION);
+        response.push_back(' ');
+
+        if(http_request.resource == http::resource::INVALID)
+            response.append(http::HTTP_RESPONSE_INVALID);
+        else
+            response.append(http::HTTP_RESPONSE_OK);
+
+        // No header
+
+        response.append(http::HTTP_DELIM);
+
+        // Body
+
+        switch(http_request.resource) {
+        case http::resource::INVALID:
+            return response;
+        case http::resource::INDEX_HTML:
+            response.append(web::INDEX_HTML);
+            break;
+        case http::resource::INDEX_JS:
+            response.append(web::INDEX_JS);
+            break;
+        case http::resource::STORE:
+            response.push_back('[');
+            for(const auto& entry : server.cipher_store) {
+                response.append("{\"id\":" + std::to_string(entry.first)
+                    + ",\"ciphertext\":\"" + entry.second + "\"},");
+            }
+            // Replace trailing comma
+            response.back() = ']';
+            break;
+        }
+
+        return response.append(http::HTTP_DELIM);
     }
 }

@@ -9,9 +9,8 @@
 namespace passman {
     server::server(std::uint16_t port, const std::string& password) :
         io_context(1),
-        ssl_context(asio::ssl::context::method::sslv23_server),
-        acceptor(io_context,
-            asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+        ssl_context(asio::ssl::context::method::tlsv13_server),
+        acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
     {
         ssl_context.set_options(asio::ssl::context::default_workarounds
             | asio::ssl::context::single_dh_use);
@@ -48,6 +47,11 @@ namespace passman {
         ssl_context.use_tmp_dh_file(crypto::DH_FILENAME);
 
         asio::co_spawn(io_context, listen(), asio::detached);
+
+        // TODO: remove
+        cipher_store.insert("hello");
+        cipher_store.insert("world");
+        cipher_store.insert("!");
     }
 
     void server::run() {
@@ -66,7 +70,7 @@ namespace passman {
             try {
                 // This connection will be destroyed automatically when its
                 // coroutines finish
-                connection::create(
+                connection::create(*this,
                     asio::ssl::stream<asio::ip::tcp::socket>(
                         co_await acceptor.async_accept(asio::use_awaitable),
                         ssl_context));

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <coroutine>
 #include <array>
 #include <algorithm>
@@ -7,6 +8,31 @@
 #include "http.hpp"
 
 namespace passman::http {
+    namespace {
+        // request_method and string mapping
+        constexpr std::array<std::pair<request_method, std::string_view>, 2>
+            request_methods({{request_method::GET, "GET"},
+                {request_method::POST, "POST"}});
+
+        // Maximum length of request method string
+        constexpr std::string::size_type rm_max_size = std::max_element(
+            request_methods.cbegin(), request_methods.cend(),
+            [](const std::pair<request_method, std::string_view>& a,
+                const std::pair<request_method, std::string_view>& b)
+            {
+                return a.second.size() < b.second.size();
+            }
+        )->second.size();
+
+        // URI and resource mapping
+        const std::unordered_map<std::string, resource> uri_mapping{
+            {"/", resource::INDEX_HTML},
+            {"/index.html", resource::INDEX_HTML},
+            {"/index.js", resource::INDEX_JS},
+            {"/store", resource::STORE}
+        };
+    }
+
     enum class parse_result {
         VALID,
         INVALID,
@@ -75,21 +101,6 @@ namespace passman::http {
 
         // Parse request method
 
-        // request_method and string mapping
-        constexpr std::array<std::pair<request_method, std::string_view>, 2>
-            request_methods({{request_method::GET, "GET"},
-                {request_method::POST, "POST"}});
-
-        // Maximum length of request method string
-        constexpr std::string::size_type rm_max_size = std::max_element(
-            request_methods.cbegin(), request_methods.cend(),
-            [](const std::pair<request_method, std::string_view>& a,
-                const std::pair<request_method, std::string_view>& b)
-            {
-                return a.second.size() < b.second.size();
-            }
-        )->second.size();
-
         // Request method string
         std::string rm_str;
         rm_str.reserve(rm_max_size);
@@ -127,37 +138,35 @@ namespace passman::http {
         // Consume previous space
         buffer_view.remove_prefix(1);
         
-        // Scope to prevent erroneous use of uri after move
-        {
-            std::string uri;
+        std::string uri;
 
-            // Search for next space
-            while(true) {
-                for(const char c : buffer_view) {
-                    if(c == ' ')
-                        goto uri_found;
-                    else if(uri.size() == uri_max_size)
-                        co_return return_type::INVALID;
-                    
-                    uri.push_back(c);
-                    buffer_view.remove_prefix(1);
-                }
-
-                co_await std::suspend_always();
+        // Search for next space
+        while(true) {
+            for(const char c : buffer_view) {
+                if(c == ' ')
+                    goto uri_found;
+                else if(uri.size() == uri_max_size)
+                    co_return return_type::INVALID;
+                
+                uri.push_back(c);
+                buffer_view.remove_prefix(1);
             }
-        uri_found:
 
-            http_request.uri = std::move(uri);
+            co_await std::suspend_always();
         }
+    uri_found:
+
+        const auto resource_it = uri_mapping.find(uri);
+        http_request.resource = resource_it == uri_mapping.cend() ?
+            resource::INVALID : resource_it->second;
 
         // Parse header
-        // As of right now we ignore whatever is in the header
+        // As of now we ignore whatever is in the header
 
         constexpr std::string::size_type header_max_size = 8192;
         
         // method + ' ' + uri + remainder of buffer_view
-        std::string::size_type bytes_read = rm_str.size()
-            + http_request.uri.size() + 1;
+        std::string::size_type bytes_read = rm_str.size() + uri.size() + 1;
 
         // Read until http delimiter
 

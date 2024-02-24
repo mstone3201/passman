@@ -1,6 +1,7 @@
 #pragma once
 
 #include "include_asio.hpp"
+#include "store.hpp"
 
 namespace passman {
     class bad_password : public std::exception {};
@@ -21,5 +22,9 @@ namespace passman {
         asio::io_context io_context;
         asio::ssl::context ssl_context;
         asio::ip::tcp::acceptor acceptor;
+
+        store<std::string> cipher_store;
+
+        friend class connection;
     };
 }

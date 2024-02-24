@@ -97,7 +97,7 @@ namespace {
         EVP_MD* const evp_md = nullptr;
     };
 
-    hash hash_sha256(hash_algorithm::SHA256);
+    const hash hash_sha256(hash_algorithm::SHA256);
 
     // Ciphers
 
@@ -139,7 +139,7 @@ namespace {
         EVP_CIPHER* const evp_cipher = nullptr;
     };
 
-    cipher cipher_des_ede3_cbc(cipher_algorithm::DES_EDE3_CBC);
+    const cipher cipher_des_ede3_cbc(cipher_algorithm::DES_EDE3_CBC);
 
     // Keys
 
