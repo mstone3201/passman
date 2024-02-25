@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "include_asio.hpp"
 
 namespace passman {
@@ -17,6 +19,8 @@ namespace passman {
         
     private:
         asio::awaitable<void> listen();
+
+        const std::string password;
 
         asio::io_context io_context;
         asio::ssl::context ssl_context;

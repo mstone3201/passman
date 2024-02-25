@@ -8,6 +8,7 @@
 
 namespace passman {
     server::server(std::uint16_t port, const std::string& password) :
+        password(password),
         io_context(1),
         ssl_context(asio::ssl::context::method::tlsv13_server),
         acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
@@ -15,10 +16,10 @@ namespace passman {
         ssl_context.set_options(asio::ssl::context::default_workarounds
             | asio::ssl::context::single_dh_use);
         ssl_context.set_password_callback(
-            [&password](std::size_t max_length,
+            [this](std::size_t max_length,
                 asio::ssl::context::password_purpose purpose)
             {
-                return password;
+                return server::password;
             }
         );
 
@@ -28,7 +29,7 @@ namespace passman {
         {
             std::cout << "Generating RSA keypair and certificate..."
                 << std::endl;
-            crypto::generate_certificate("passman", password);
+            crypto::generate_certificate("passman", server::password);
         }
         if(!std::filesystem::exists(crypto::DH_FILENAME)) {
             std::cout << "Generating DH parameters..." << std::endl;

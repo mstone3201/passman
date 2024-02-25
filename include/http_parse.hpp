@@ -35,11 +35,13 @@ namespace passman::http {
         };
 
         enum class http_header {
-            CONTENT_LENGTH
+            CONTENT_LENGTH,
+            SERVER_TOKEN
         };
 
         const std::unordered_map<std::string_view, http_header> header_mapping{
-            {"Content-Length", http_header::CONTENT_LENGTH}
+            {"Content-Length", http_header::CONTENT_LENGTH},
+            {"Server-Token", http_header::SERVER_TOKEN}
         };
     }
 
@@ -102,9 +104,15 @@ namespace passman::http {
         std::coroutine_handle<promise_type> handle;
     };
 
+    /*
+    POST requests must be authorized, otherwise they are rejected
+    Only POST requests are permitted to have a body (although it may be empty)
+    GET requests can optionally be authorized
+    */
     inline parser_coroutine parse_request(
         std::string_view& buffer_view,
-        request& http_request
+        request& http_request,
+        std::string_view server_token
     ) {
         using return_type =
             passman::http::parser_coroutine::promise_type::return_type;
@@ -163,8 +171,16 @@ namespace passman::http {
 
         // Identify requested resource
         const auto resource_it = uri_mapping.find(uri);
-        http_request.resource = resource_it == uri_mapping.cend() ?
-            resource::INVALID : resource_it->second;
+        if(resource_it != uri_mapping.cend())
+            http_request.resource = resource_it->second;
+        else {
+            http_request.resource = resource::INVALID;
+
+            std::cout << "Invalid " << method_str << " request for " << uri
+                << std::endl;;
+
+            co_return return_type::INVALID;
+        }
 
         // Read HTTP version
 
@@ -264,6 +280,10 @@ namespace passman::http {
                         }
                         break;
                     }
+                case http_header::SERVER_TOKEN:
+                    if(header_value == server_token)
+                        http_request.authorized = true;
+                    break;
                 }
             }
         }
@@ -271,27 +291,35 @@ namespace passman::http {
 
         // Read body
 
-        if(content_length) {
-            std::string body;
+        if(http_request.method == request_method::POST) {
+            // Only allow POSTs from authorized requests
+            if(!http_request.authorized)
+                co_return return_type::INVALID;
 
-            while(true) {
-                for(const char c : buffer_view) {
-                    body.push_back(c);
+            if(content_length) {
+                std::string body;
 
-                    if(body.size() == content_length)
-                        goto body_read;
+                while(true) {
+                    for(const char c : buffer_view) {
+                        body.push_back(c);
+
+                        if(body.size() == content_length)
+                            goto body_read;
+                    }
+
+                    co_await std::suspend_always();
                 }
+            body_read:
 
-                co_await std::suspend_always();
+                http_request.body = std::move(body);
             }
-        body_read:
-
-            http_request.body = std::move(body);
         }
 
+        if(http_request.authorized)
+            std::cout << "Authorized ";
         std::cout << method_str << " request for " << uri;
         if(http_request.body)
-            std::cout << " with body (" << content_length << ") "
+            std::cout << " with body (" << http_request.body->size() << ") "
                 << *http_request.body;
         std::cout << std::endl;
         

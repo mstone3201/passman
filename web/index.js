@@ -1,5 +1,9 @@
-async function loadStore() {
-    const response = await fetch("store");
+async function loadStore(serverPassword) {
+    const response = await fetch("store", {
+        "headers": {
+            "Server-Token": serverPassword
+        }
+    });
     if(!response.ok)
         throw new Error("store not found");
     
@@ -21,32 +25,58 @@ async function loadStore() {
     return store;
 }
 
-async function postStore(store) {
+async function postStore(store, serverPassword) {
     const response = await fetch("store", {
         "method": "POST",
+        "headers": {
+            "Server-Token": serverPassword
+        },
         "body": JSON.stringify(store)
     });
     if(!response.ok)
         throw new Error("Could not post store");
 }
 
+async function loadEvent(store) {
+    const serverPassword = document.getElementById("server_password");
+    if(!serverPassword.value) {
+        alert("Invalid server password");
+        return;
+    }
+
+    try {
+        store = await loadStore(serverPassword.value);
+        renderStore(store);
+    } catch(e) {
+        alert("Error occurred while loading store");
+    }
+}
+
 async function insertEvent(store) {
+    const serverPassword = document.getElementById("server_password");
+    if(!serverPassword.value) {
+        alert("Invalid server password");
+        return;
+    }
+
     const textElement = document.getElementById("insert_text");
-    if(!textElement.value)
+    if(!textElement.value) {
         alert("Invalid input");
-    else {
-        const entry = textElement.value;
-        
-        store.push(entry);
+        return;
+    }
 
-        try {
-            await postStore(store);
+    const entry = textElement.value;
+    
+    store.push(entry);
 
-            const storeElement = document.getElementById("store");
-            storeElement.appendChild(createEntryElement(entry));
-        } catch(e) {
-            alert("Error inserting into store");
-        }
+    try {
+        await postStore(store, serverPassword.value);
+
+        const storeElement = document.getElementById("store");
+        storeElement.appendChild(createEntryElement(entry));
+    } catch(e) {
+        store.pop();
+        alert("Error updating store");
     }
 }
 
@@ -69,17 +99,15 @@ function renderStore(store) {
 }
 
 async function init() {
-    try {
-        const store = await loadStore();
-        renderStore(store);
+    let store = [];
 
-        const insertButtonElement = document.getElementById("insert_button");
-        insertButtonElement.addEventListener("mousedown",
-            (mouseEvent) => insertEvent(store));
-    } catch(e) {
-        console.error(e);
-        alert("Error occurred while loading store");
-    }
+    const loadButtonElement = document.getElementById("load_button");
+    loadButtonElement.addEventListener("mousedown",
+        (mouseEvent) => loadEvent(store));
+
+    const insertButtonElement = document.getElementById("insert_button");
+    insertButtonElement.addEventListener("mousedown",
+        (mouseEvent) => insertEvent(store));
 }
 
 init();

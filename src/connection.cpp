@@ -81,7 +81,7 @@ namespace passman {
             std::array<char, 2048> buffer;
             std::string_view buffer_view;
             http::parser_coroutine parser = http::parse_request(buffer_view,
-                http_request);
+                http_request, server.password);
 
             while(true) {
                 try {
@@ -112,17 +112,21 @@ namespace passman {
         }
     read_valid:
 
-        // Process request
+        // Process and validate request
         switch(http_request.resource) {
+        case http::resource::INDEX_HTML:
+        case http::resource::INDEX_JS:
+            if(http_request.method != http::request_method::GET)
+                co_return;
+            break;
         case http::resource::STORE:
-            switch(http_request.method) {
-            case http::request_method::POST:
-                if(http_request.body)
-                    server.store = std::move(*http_request.body);
-                else
-                    co_return;
-                break;
-            }
+            if(http_request.method == http::request_method::POST)
+                // POST requests are always authorized
+                server.store = std::move(http_request.body.value_or(""));
+            else if(!http_request.authorized)
+                // Respond to let the client know they are unauthorized
+                http_request.resource = http::resource::INVALID;
+            break;
         }
 
         // Write response
@@ -180,16 +184,12 @@ namespace passman {
                 .append(http::HTTP_DELIM).append(web::INDEX_JS);
             break;
         case http::resource::STORE:
-            switch(http_request.method) {
-            case http::request_method::GET:
+            if(http_request.method == http::request_method::GET)
                 response.append("Content-Length: ")
                     .append(std::to_string(server.store.size()))
                     .append(http::HTTP_DELIM).append(server.store);
-                break;
-            case http::request_method::POST:
+            else
                 response.append("Content-Length: 0").append(http::HTTP_DELIM);
-                break;
-            }
             break;
         }
 

@@ -8,7 +8,7 @@ namespace passman::http {
     constexpr std::string_view HTTP_EOL = "\r\n";
     constexpr std::string_view HTTP_DELIM = "\r\n\r\n";
     constexpr std::string_view HTTP_RESPONSE_OK = "200 OK";
-    constexpr std::string_view HTTP_RESPONSE_INVALID = "401 Not Found";
+    constexpr std::string_view HTTP_RESPONSE_INVALID = "404 Not Found";
 
     enum class request_method {
         GET,
@@ -25,6 +25,7 @@ namespace passman::http {
     struct request {
         request_method method = request_method::GET;
         resource resource = resource::INVALID;
+        bool authorized = false;
         std::optional<std::string> body;
     };
 }
