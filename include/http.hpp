@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 namespace passman::http {
     constexpr std::string_view HTTP_VERSION = "HTTP/1.1";
@@ -24,5 +25,6 @@ namespace passman::http {
     struct request {
         request_method method = request_method::GET;
         resource resource = resource::INVALID;
+        std::optional<std::string> body;
     };
 }

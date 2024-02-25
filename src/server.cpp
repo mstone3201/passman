@@ -28,7 +28,7 @@ namespace passman {
         {
             std::cout << "Generating RSA keypair and certificate..."
                 << std::endl;
-            crypto::generate_certificate("localhost", password);
+            crypto::generate_certificate("passman", password);
         }
         if(!std::filesystem::exists(crypto::DH_FILENAME)) {
             std::cout << "Generating DH parameters..." << std::endl;
@@ -47,11 +47,6 @@ namespace passman {
         ssl_context.use_tmp_dh_file(crypto::DH_FILENAME);
 
         asio::co_spawn(io_context, listen(), asio::detached);
-
-        // TODO: remove
-        cipher_store.insert("hello");
-        cipher_store.insert("world");
-        cipher_store.insert("!");
     }
 
     void server::run() {

@@ -14,7 +14,11 @@ foreach(WEB_FILE ${WEB_FILES})
     string(TOUPPER "${WEB_VAR}" WEB_VAR)
 
     file(READ "${WEB_FILE}" WEB_CONTENTS)
+    # Remove comments
+    string(REGEX REPLACE "//[^\n]*|/\\*[^*]*\\*/" "" WEB_CONTENTS
+        "${WEB_CONTENTS}")
     string(REPLACE "\n" "" WEB_CONTENTS "${WEB_CONTENTS}")
+    string(REPLACE "\\" "\\\\" WEB_CONTENTS "${WEB_CONTENTS}")
 
     set(${WEB_VAR} "${WEB_CONTENTS}")
 endforeach()

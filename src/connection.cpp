@@ -112,8 +112,18 @@ namespace passman {
         }
     read_valid:
 
-        std::cout << "Request for resource "
-            << static_cast<int>(http_request.resource) << std::endl;
+        // Process request
+        switch(http_request.resource) {
+        case http::resource::STORE:
+            switch(http_request.method) {
+            case http::request_method::POST:
+                if(http_request.body)
+                    server.store = std::move(*http_request.body);
+                else
+                    co_return;
+                break;
+            }
+        }
 
         // Write response
 
@@ -151,33 +161,38 @@ namespace passman {
             response.append(http::HTTP_RESPONSE_INVALID);
         else
             response.append(http::HTTP_RESPONSE_OK);
+        response.append(http::HTTP_EOL);
 
-        // No header
-
-        response.append(http::HTTP_DELIM);
-
-        // Body
+        // Header & Body
 
         switch(http_request.resource) {
         case http::resource::INVALID:
-            return response;
+            response.append("Content-Length: 0").append(http::HTTP_DELIM);
+            break;
         case http::resource::INDEX_HTML:
-            response.append(web::INDEX_HTML);
+            response.append("Content-Length: ")
+                .append(std::to_string(web::INDEX_HTML.size()))
+                .append(http::HTTP_DELIM).append(web::INDEX_HTML);
             break;
         case http::resource::INDEX_JS:
-            response.append(web::INDEX_JS);
+            response.append("Content-Length: ")
+                .append(std::to_string(web::INDEX_JS.size()))
+                .append(http::HTTP_DELIM).append(web::INDEX_JS);
             break;
         case http::resource::STORE:
-            response.push_back('[');
-            for(const auto& entry : server.cipher_store) {
-                response.append("{\"id\":" + std::to_string(entry.first)
-                    + ",\"ciphertext\":\"" + entry.second + "\"},");
+            switch(http_request.method) {
+            case http::request_method::GET:
+                response.append("Content-Length: ")
+                    .append(std::to_string(server.store.size()))
+                    .append(http::HTTP_DELIM).append(server.store);
+                break;
+            case http::request_method::POST:
+                response.append("Content-Length: 0").append(http::HTTP_DELIM);
+                break;
             }
-            // Replace trailing comma
-            response.back() = ']';
             break;
         }
 
-        return response.append(http::HTTP_DELIM);
+        return response;
     }
 }

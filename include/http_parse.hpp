@@ -7,29 +7,39 @@
 
 #include "http.hpp"
 
+// TODO: remove debug print statements
+#include <iostream>
+
 namespace passman::http {
     namespace {
-        // request_method and string mapping
-        constexpr std::array<std::pair<request_method, std::string_view>, 2>
-            request_methods({{request_method::GET, "GET"},
-                {request_method::POST, "POST"}});
+        const std::unordered_map<std::string_view, request_method>
+            method_mapping{
+                {"GET", request_method::GET},
+                {"POST", request_method::POST}
+            };
 
-        // Maximum length of request method string
-        constexpr std::string::size_type rm_max_size = std::max_element(
-            request_methods.cbegin(), request_methods.cend(),
-            [](const std::pair<request_method, std::string_view>& a,
-                const std::pair<request_method, std::string_view>& b)
+        const std::string::size_type method_max_size = std::max_element(
+            method_mapping.cbegin(), method_mapping.cend(),
+            [](const std::pair<std::string_view, request_method>& a,
+                const std::pair<std::string_view, request_method>& b)
             {
-                return a.second.size() < b.second.size();
+                return a.first.size() < b.first.size();
             }
-        )->second.size();
+        )->first.size();
 
-        // URI and resource mapping
-        const std::unordered_map<std::string, resource> uri_mapping{
+        const std::unordered_map<std::string_view, resource> uri_mapping{
             {"/", resource::INDEX_HTML},
             {"/index.html", resource::INDEX_HTML},
             {"/index.js", resource::INDEX_JS},
             {"/store", resource::STORE}
+        };
+
+        enum class http_header {
+            CONTENT_LENGTH
+        };
+
+        const std::unordered_map<std::string_view, http_header> header_mapping{
+            {"Content-Length", http_header::CONTENT_LENGTH}
         };
     }
 
@@ -101,43 +111,36 @@ namespace passman::http {
 
         // Parse request method
 
-        // Request method string
-        std::string rm_str;
-        rm_str.reserve(rm_max_size);
+        std::string method_str;
 
         // Search for first space
         while(true) {
             for(const char c : buffer_view) {
                 if(c == ' ')
                     goto method_found;
-                else if(rm_str.size() == rm_max_size)
+                else if(method_str.size() == method_max_size)
                     co_return return_type::INVALID;
                 
-                rm_str.push_back(c);
+                method_str.push_back(c);
                 buffer_view.remove_prefix(1);
             }
 
             co_await std::suspend_always();
         }
     method_found:
+        // Consume the space
+        buffer_view.remove_prefix(1);
 
         // Identify request method
-        for(const auto& method : request_methods) {
-            if(method.second == rm_str) {
-                http_request.method = method.first;
-                goto method_valid;
-            }
-        }
-        co_return return_type::INVALID;
-    method_valid:
+        const auto method_it = method_mapping.find(method_str);
+        if(method_it != method_mapping.cend())
+            http_request.method = method_it->second;
+        else
+            co_return return_type::INVALID;
 
         // Parse uri
 
         constexpr std::string::size_type uri_max_size = 1024;
-
-        // Consume previous space
-        buffer_view.remove_prefix(1);
-        
         std::string uri;
 
         // Search for next space
@@ -155,40 +158,142 @@ namespace passman::http {
             co_await std::suspend_always();
         }
     uri_found:
+        // Consume the space
+        buffer_view.remove_prefix(1);
 
+        // Identify requested resource
         const auto resource_it = uri_mapping.find(uri);
         http_request.resource = resource_it == uri_mapping.cend() ?
             resource::INVALID : resource_it->second;
 
-        // Parse header
-        // As of now we ignore whatever is in the header
+        // Read HTTP version
 
-        constexpr std::string::size_type header_max_size = 8192;
-        
-        // method + ' ' + uri + remainder of buffer_view
-        std::string::size_type bytes_read = rm_str.size() + uri.size() + 1;
+        // HTTP/X.Y\r
+        constexpr std::string::size_type version_max_size = 9;
+        std::string version_str;
 
-        // Read until http delimiter
-
-        std::string_view::const_iterator delim_it = HTTP_DELIM.cbegin();
-
+        // Search for next \n
         while(true) {
             for(const char c : buffer_view) {
-                if(c == *delim_it) {
-                    if(++delim_it == HTTP_DELIM.cend())
-                        goto delim_found;
-                } else
-                    delim_it = HTTP_DELIM.cbegin();
-            }
-        
-            bytes_read += buffer_view.size();
+                if(c == '\n')
+                    goto version_found;
+                else if(version_str.size() == version_max_size)
+                    co_return return_type::INVALID;
 
-            if(bytes_read >= header_max_size)
-                co_return return_type::INVALID;
+                version_str.push_back(c);
+                buffer_view.remove_prefix(1);
+            }
 
             co_await std::suspend_always();
         }
-    delim_found:
+    version_found:
+        // Consume the \n
+        buffer_view.remove_prefix(1);
+
+        // If line ended in \r\n then remove \r
+        if(!version_str.empty() && version_str.back() == '\r')
+            version_str.pop_back();
+
+        // Parse header
+
+        constexpr std::string::size_type header_max_size = 8192;
+        std::string::size_type bytes_read = 0;
+
+        std::string::size_type content_length = 0;
+
+        // Look through the headers
+        while(true) {
+            std::string header_line;
+
+            // Search for next \n
+            while(true) {
+                for(const char c : buffer_view) {
+                    if(c == '\n')
+                        goto header_line_found;
+                    else if(bytes_read == header_max_size)
+                        co_return return_type::INVALID;
+
+                    header_line.push_back(c);
+                    ++bytes_read;
+                    buffer_view.remove_prefix(1);
+                }
+
+                co_await std::suspend_always();
+            }
+        header_line_found:
+            // Consume the \n
+            buffer_view.remove_prefix(1);
+
+            // If line ended in \r\n then remove \r
+            if(!header_line.empty() && header_line.back() == '\r')
+                header_line.pop_back();
+
+            // Found HTTP_DELIM
+            if(header_line.empty())
+                goto header_delim_found;
+
+            // Split into key and value
+
+            const auto header_split_pos = header_line.find_first_of(':');
+            if(header_split_pos == std::string::npos || header_split_pos == 0)
+                co_return return_type::INVALID;
+            // Skip spaces
+            const auto value_start_pos = header_line.find_first_not_of(' ',
+                header_split_pos + 1);
+            if(value_start_pos == std::string::npos)
+                co_return return_type::INVALID;
+                
+            // Views of key and value
+            const std::string_view header_key(header_line.cbegin(),
+                header_line.cbegin() + header_split_pos);
+            const std::string_view header_value(
+                header_line.cbegin() + value_start_pos, header_line.cend());
+
+            // Find known headers
+            const auto header_it = header_mapping.find(header_key);
+            if(header_it != header_mapping.cend()) {
+                switch(header_it->second) {
+                case http_header::CONTENT_LENGTH:
+                    {
+                        const char* end = header_value.data()
+                            + header_value.size();
+                        if(std::from_chars(header_value.data(), end,
+                            content_length).ptr != end)
+                        {
+                            co_return return_type::INVALID;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    header_delim_found:
+
+        // Read body
+
+        if(content_length) {
+            std::string body;
+
+            while(true) {
+                for(const char c : buffer_view) {
+                    body.push_back(c);
+
+                    if(body.size() == content_length)
+                        goto body_read;
+                }
+
+                co_await std::suspend_always();
+            }
+        body_read:
+
+            http_request.body = std::move(body);
+        }
+
+        std::cout << method_str << " request for " << uri;
+        if(http_request.body)
+            std::cout << " with body (" << content_length << ") "
+                << *http_request.body;
+        std::cout << std::endl;
         
         co_return return_type::VALID;
     }

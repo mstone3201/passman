@@ -302,15 +302,10 @@ namespace {
 
             // X509_get_subject_name will not fail
             X509_NAME* name = X509_get_subject_name(x509);
-            if(!X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC,
-                reinterpret_cast<const unsigned char*>("US"), -1, -1, 0))
-            {
-                throw std::exception("Failed to set x509 certificate country");
-            }
             if(!X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC,
                 reinterpret_cast<const unsigned char*>("passman"), -1, -1, 0))
             {
-                throw std::exception("Failed to set x509 company");
+                throw std::exception("Failed to set x509 organization");
             }
             if(!X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
                 reinterpret_cast<const unsigned char*>(hostname.c_str()), -1,
