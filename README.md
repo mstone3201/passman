@@ -10,6 +10,7 @@ Hello world!
         * Unique value could be a hash of the store, so only a client with a store that agrees with the server can POST
     * If a client makes a POST with the wrong unique value, then they are out of date, should request the new store
     * Could be enforced by the client or the server
+    * Maybe put unique value in header
 * Server password is visible
     * Shouldn't pass the server password as a command line argument, need to obfuscate it
     * Should obfuscate the server password on the website as well

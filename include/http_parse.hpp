@@ -300,12 +300,11 @@ namespace passman::http {
                 std::string body;
 
                 while(true) {
-                    for(const char c : buffer_view) {
-                        body.push_back(c);
-
-                        if(body.size() == content_length)
-                            goto body_read;
-                    }
+                    if(body.size() + buffer_view.size() >= content_length) {
+                        body.append(buffer_view.data(), content_length - body.size());
+                        goto body_read;
+                    } else
+                        body.append(buffer_view);
 
                     co_await std::suspend_always();
                 }
