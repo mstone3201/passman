@@ -350,6 +350,10 @@ namespace {
 }
 
 namespace passman::crypto {
+    const std::string PRIVATE_KEY_FILENAME = "private_key.pem";
+    const std::string CERTIFICATE_FILENAME = "certificate.pem";
+    const std::string DH_FILENAME = "dh.pem";
+
     void generate_certificate(const std::string& hostname,
         std::string_view password)
     {
@@ -364,8 +368,4 @@ namespace passman::crypto {
         dh_keypair keypair(key_size::SECURE_8192);
         keypair.write(DH_FILENAME);
     }
-
-    const std::string PRIVATE_KEY_FILENAME = "private_key.pem";
-    const std::string CERTIFICATE_FILENAME = "certificate.pem";
-    const std::string DH_FILENAME = "dh.pem";
 }

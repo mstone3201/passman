@@ -5,6 +5,8 @@
 #include "include_asio.hpp"
 
 namespace passman {
+    extern const std::string STORE_FILENAME;
+
     class bad_password : public std::exception {};
 
     class server {
@@ -16,6 +18,9 @@ namespace passman {
 
         void run();
         void stop();
+
+        void set_store(std::string&& value);
+        void save_store() const;
         
     private:
         asio::awaitable<void> listen();
@@ -27,6 +32,8 @@ namespace passman {
         asio::ip::tcp::acceptor acceptor;
 
         std::string store;
+        asio::steady_timer save_timer;
+        bool save_scheduled;
 
         friend class connection;
     };

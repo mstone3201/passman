@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Stopping server" << std::endl;
 
                 server.stop();
+                server.save_store();
                 break;
             } else
                 std::cout << "Unknown command" << std::endl;

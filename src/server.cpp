@@ -2,16 +2,22 @@
 
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 
 #include "connection.hpp"
 #include "crypto.hpp"
 
 namespace passman {
+    const std::string STORE_FILENAME = "store";
+
     server::server(std::uint16_t port, const std::string& password) :
         password(password),
         io_context(1),
         ssl_context(asio::ssl::context::method::tlsv13_server),
-        acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+        acceptor(io_context,
+            asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
+        save_timer(io_context),
+        save_scheduled(false)
     {
         ssl_context.set_options(asio::ssl::context::default_workarounds
             | asio::ssl::context::single_dh_use);
@@ -47,6 +53,18 @@ namespace passman {
         ssl_context.use_certificate_chain_file(crypto::CERTIFICATE_FILENAME);
         ssl_context.use_tmp_dh_file(crypto::DH_FILENAME);
 
+        // Load the store
+        {
+            std::ifstream file(STORE_FILENAME,
+                std::ios::binary | std::ios::ate);
+            if(file.is_open()) {
+                const std::ifstream::pos_type size = file.tellg();
+                file.seekg(0);
+                store.resize(size);
+                file.read(store.data(), size);
+            }
+        }
+
         asio::co_spawn(io_context, listen(), asio::detached);
     }
 
@@ -59,6 +77,28 @@ namespace passman {
     void server::stop() {
         // Make run() return
         io_context.stop();
+    }
+
+    void server::set_store(std::string&& value) {
+        store = std::move(value);
+
+        if(!save_scheduled) {
+            save_scheduled = true;
+
+            save_timer.expires_after(std::chrono::minutes(5));
+            save_timer.async_wait([this](const asio::error_code& error) {
+                if(!error) {
+                    save_scheduled = false;
+
+                    save_store();
+                }
+            });
+        }
+    }
+
+    void server::save_store() const {
+        std::ofstream file(STORE_FILENAME, std::ios::binary);
+        file.write(store.data(), store.size());
     }
 
     asio::awaitable<void> server::listen() {

@@ -4,10 +4,6 @@ Hello world!
 
 ## TODO:
 
-* Have server save the store to disk
-    * After a POST start a 5 minute timer, then save the file
-    * POSTs within the timer are included, but don't extend it
-    * A POST after the timer expires and the file is written starts a new timer
 * Prevent client from overwriting store if they are out of date
     * Currently, if one client gets behind another and their store is out of date, when they insert something without fetching the new store, they will overwrite the store
     * Add unique value to POSTs, they should match the number retrieved from a GET
