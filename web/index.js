@@ -2,6 +2,7 @@
 
 class Store {
     value = [];
+    storeHash;
     serverPassword;
 
     async load() {
@@ -12,15 +13,22 @@ class Store {
         });
         if(!response.ok)
             throw new Error("Store not found");
-        
-        const ciphertext = await response.text();
-        if(!ciphertext) {
+
+        const ciphertext = await response.arrayBuffer();
+        if(!ciphertext.byteLength) {
             this.value = [];
+            
+            const hash = await crypto.subtle.digest("SHA-512",
+                new ArrayBuffer());
+            this.storeHash = btoa(
+                String.fromCodePoint(...new Uint8Array(hash)));
             return;
         }
     
-        // TODO: ciphertext is actually plaintext for now
-        const store = JSON.parse(ciphertext);
+        // TODO: decrypt ciphertext
+        const plaintext = ciphertext;
+
+        const store = JSON.parse(new TextDecoder().decode(plaintext));
     
         // Validate store
         if(!Array.isArray(store))
@@ -31,18 +39,31 @@ class Store {
                 throw new Error("Entry was invalid in store");
     
         this.value = store;
+
+        // Hash the store
+        const hash = await crypto.subtle.digest("SHA-512", ciphertext);
+        this.storeHash = btoa(String.fromCodePoint(...new Uint8Array(hash)));
     }
 
     async commit() {
+        const plaintext = new TextEncoder().encode(JSON.stringify(this.value));
+
+        // TODO: encrypt plaintext
+        const ciphertext = plaintext;
+
         const response = await fetch("store", {
             "method": "POST",
             "headers": {
-                "Server-Token": this.serverPassword
+                "Server-Token": this.serverPassword,
+                "Store-Hash": this.storeHash
             },
-            "body": JSON.stringify(this.value)
+            "body": new TextDecoder().decode(ciphertext)
         });
         if(!response.ok)
             throw new Error("Could not commit store");
+
+        const hash = await crypto.subtle.digest("SHA-512", ciphertext);
+        this.storeHash = btoa(String.fromCodePoint(...new Uint8Array(hash)));
     }
 }
 

@@ -36,12 +36,14 @@ namespace passman::http {
 
         enum class http_header {
             CONTENT_LENGTH,
-            SERVER_TOKEN
+            SERVER_TOKEN,
+            STORE_HASH
         };
 
         const std::unordered_map<std::string_view, http_header> header_mapping{
             {"Content-Length", http_header::CONTENT_LENGTH},
-            {"Server-Token", http_header::SERVER_TOKEN}
+            {"Server-Token", http_header::SERVER_TOKEN},
+            {"Store-Hash", http_header::STORE_HASH}
         };
     }
 
@@ -283,6 +285,9 @@ namespace passman::http {
                 case http_header::SERVER_TOKEN:
                     if(header_value == server_token)
                         http_request.authorized = true;
+                    break;
+                case http_header::STORE_HASH:
+                    http_request.store_hash = header_value;
                     break;
                 }
             }

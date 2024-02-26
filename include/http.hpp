@@ -26,6 +26,7 @@ namespace passman::http {
         request_method method = request_method::GET;
         resource resource = resource::INVALID;
         bool authorized = false;
+        std::optional<std::string> store_hash;
         std::optional<std::string> body;
     };
 }

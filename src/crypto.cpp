@@ -60,13 +60,13 @@ namespace {
     // Hashes
 
     enum class hash_algorithm {
-        SHA256
+        SHA2_512
     };
 
     std::string get_hash_algorithm_str(hash_algorithm algorithm) {
         switch(algorithm) {
-        case hash_algorithm::SHA256:
-            return "SHA256";
+        case hash_algorithm::SHA2_512:
+            return "SHA2-512";
         }
 
         throw std::exception("Unknown hash algorithm");
@@ -89,6 +89,39 @@ namespace {
 
         hash& operator=(const hash&) = delete;
 
+        std::string digest(std::string_view data) const {
+            int digest_size = EVP_MD_get_size(evp_md);
+            if(digest_size == -1)
+                throw std::exception("Failed to get size of digest");
+
+            std::string result(digest_size, '\0');
+
+            EVP_MD_CTX* context = EVP_MD_CTX_new();
+            if(!context)
+                throw std::exception("Failed to create digest context");
+
+            if(!EVP_DigestInit(context, evp_md)) {
+                EVP_MD_CTX_free(context);
+                throw std::exception("Failed to initialize digest operation");
+            }
+
+            if(!EVP_DigestUpdate(context, data.data(), data.size())) {
+                EVP_MD_CTX_free(context);
+                throw std::exception("Failed to update digest operation");
+            }
+
+            if(!EVP_DigestFinal(context,
+                reinterpret_cast<unsigned char*>(result.data()), nullptr))
+            {
+                EVP_MD_CTX_free(context);
+                throw std::exception("Failed to finalize digest operation");
+            }
+
+            EVP_MD_CTX_free(context);
+
+            return std::move(result);
+        }
+
         const EVP_MD* native_handle() const {
             return evp_md;
         }
@@ -97,7 +130,7 @@ namespace {
         EVP_MD* const evp_md = nullptr;
     };
 
-    const hash hash_sha256(hash_algorithm::SHA256);
+    const hash hash_sha2_512(hash_algorithm::SHA2_512);
 
     // Ciphers
 
@@ -320,7 +353,7 @@ namespace {
                     name");
 
             if(!X509_sign(x509, keypair.native_handle(),
-                hash_sha256.native_handle()))
+                hash_sha2_512.native_handle()))
             {
                 throw std::exception("Failed to sign x509 certificate");
             }
@@ -367,5 +400,26 @@ namespace passman::crypto {
     void generate_dh_parameters() {
         dh_keypair keypair(key_size::SECURE_8192);
         keypair.write(DH_FILENAME);
+    }
+
+    std::string hash(std::string_view data) {
+        return std::move(hash_sha2_512.digest(data));
+    }
+
+    std::string base64_encode(std::string_view data) {
+        // Limit size of data to uint32_t max and avoid overflow
+        if(data.size() >= std::numeric_limits<uint32_t>::max())
+            throw std::exception("Data too large to base64 encode");
+
+        std::string result(data.size() / 48 * 64
+            + (data.size() % 48 + 2) / 3 * 4 + 1, '\0');
+
+        EVP_EncodeBlock(reinterpret_cast<unsigned char*>(result.data()),
+            reinterpret_cast<const unsigned char*>(data.data()), data.size());
+
+        // Pop off the null terminator
+        result.pop_back();
+
+        return std::move(result);
     }
 }

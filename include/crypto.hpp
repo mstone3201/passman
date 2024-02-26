@@ -11,4 +11,6 @@ namespace passman::crypto {
     void generate_certificate(const std::string& hostname,
         std::string_view password);
     void generate_dh_parameters();
+    std::string hash(std::string_view data);
+    std::string base64_encode(std::string_view data);
 }

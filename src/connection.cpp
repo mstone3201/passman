@@ -120,10 +120,15 @@ namespace passman {
                 co_return;
             break;
         case http::resource::STORE:
-            if(http_request.method == http::request_method::POST)
+            if(http_request.method == http::request_method::POST) {
                 // POST requests are always authorized
-                server.set_store(std::move(http_request.body.value_or("")));
-            else if(!http_request.authorized)
+                if(http_request.store_hash
+                    && *http_request.store_hash == server.store_hash)
+                {
+                    server.set_store(std::move(http_request.body.value_or("")));
+                } else
+                    http_request.resource = http::resource::INVALID;
+            } else if(!http_request.authorized)
                 // Respond to let the client know they are unauthorized
                 http_request.resource = http::resource::INVALID;
             break;

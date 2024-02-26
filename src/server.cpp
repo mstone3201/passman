@@ -64,6 +64,7 @@ namespace passman {
                 file.read(store.data(), size);
             }
         }
+        store_hash = std::move(crypto::base64_encode(crypto::hash(store)));
 
         asio::co_spawn(io_context, listen(), asio::detached);
     }
@@ -81,6 +82,7 @@ namespace passman {
 
     void server::set_store(std::string&& value) {
         store = std::move(value);
+        store_hash = std::move(crypto::base64_encode(crypto::hash(store)));
 
         if(!save_scheduled) {
             save_scheduled = true;

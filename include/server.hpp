@@ -32,6 +32,7 @@ namespace passman {
         asio::ip::tcp::acceptor acceptor;
 
         std::string store;
+        std::string store_hash;
         asio::steady_timer save_timer;
         bool save_scheduled;
 
