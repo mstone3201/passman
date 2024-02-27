@@ -4,15 +4,10 @@ Hello world!
 
 ## TODO:
 
-* Store should be encrypted
-    * Client picks a password and encrypts the store with it
-    * Only someone with the client password will be able to view the store, not even the server
 * Improve Security of passwords
     * Shouldn't pass server password as a command line argument
     * Should obfuscate passwords everywhere we need to enter them
-    * Investigate using a KDF to make it harder to guess with brute force attacks
-    * Investigate other methods to make it harder to brute force
-        * Maybe block a client for a while if they fail to authenticate a certain number of times
+    * Maybe block a client for a while if they fail to authenticate a certain number of times to make it harder to brute force
 * Implement password management features on the site
     * Table to display data
     * Should have a name column, tags column, username column, password column
