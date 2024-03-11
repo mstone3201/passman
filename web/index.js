@@ -6,18 +6,106 @@ const IV_SIZE = 32;
 const TAG_SIZE = 128;
 const KDF_ITERATIONS = 1000000;
 
+// Document constants
+
+const SERVER_PASSWORD_ELEMENT = document.getElementById("server_password");
+const CLIENT_PASSWORD_ELEMENT = document.getElementById("client_password");
+const LOAD_BUTTON_ELEMENT = document.getElementById("load_button");
+
+const INSERT_NAME_ELEMENT = document.getElementById("insert_name");
+const INSERT_TAGS_ELEMENT = document.getElementById("insert_tags");
+const INSERT_USERNAME_ELEMENT = document.getElementById("insert_username");
+const INSERT_PASSWORD_ELEMENT = document.getElementById("insert_password");
+const INSERT_BUTTON_ELEMENT = document.getElementById("insert_button");
+
+const COMMIT_BUTTON_ELEMENT = document.getElementById("commit_button");
+const STORE_ELEMENT = document.getElementById("store");
+
 // Class definitions
 
-class Store {
-    value = [];
-    storeHash;
-    serverPassword;
-    clientPassword;
+class Entry {
+    name;
+    tags = [];
+    username;
+    password;
 
-    async load() {
+    constructor(name, tags, username, password) {
+        this.name = name;
+        this.tags = tags;
+        this.username = username;
+        this.password = password;
+    }
+
+    createElement() {
+        const rowElement = document.createElement("tr");
+
+        const nameElement = document.createElement("th");
+        rowElement.appendChild(nameElement);
+
+        const nameTextElement = document.createElement("input");
+        nameTextElement.type = "text";
+        nameTextElement.value = this.name;
+        nameTextElement.addEventListener("input", () => {
+            this.name = nameTextElement.value;
+        });
+        nameElement.appendChild(nameTextElement);
+
+        const tagsElement = document.createElement("td");
+        rowElement.appendChild(tagsElement);
+
+        const tagsTextElement = document.createElement("input");
+        tagsTextElement.type = "text";
+        tagsTextElement.value = this.tags.toString();
+        tagsTextElement.addEventListener("input", () => {
+            this.tags = tagsTextElement.value.split(",");
+        });
+        tagsElement.appendChild(tagsTextElement);
+
+        const usernameElement = document.createElement("td");
+        rowElement.appendChild(usernameElement);
+
+        const usernameTextElement = document.createElement("input");
+        usernameTextElement.type = "text";
+        usernameTextElement.value = this.username;
+        usernameTextElement.addEventListener("input", () => {
+            this.username = usernameTextElement.value;
+        });
+        usernameElement.appendChild(usernameTextElement);
+
+        const passwordElement = document.createElement("td");
+        rowElement.appendChild(passwordElement);
+
+        const passwordTextElement = document.createElement("input");
+        passwordTextElement.type = "text";
+        passwordTextElement.value = this.password;
+        passwordTextElement.addEventListener("input", () => {
+            this.password = passwordTextElement.value;
+        });
+        passwordElement.appendChild(passwordTextElement);
+
+        const deleteElement = document.createElement("td");
+        rowElement.appendChild(deleteElement);
+
+        const buttonElement = document.createElement("button");
+        buttonElement.innerText = "X";
+        buttonElement.addEventListener("mousedown", () => {
+            store.erase(this);
+            store.draw();
+        });
+        deleteElement.appendChild(buttonElement);
+
+        return rowElement;
+    }
+}
+
+class Store {
+    entries = new Set();
+    storeHash;
+
+    async load(serverPassword, clientPassword) {
         const response = await fetch("store", {
             "headers": {
-                "Server-Token": this.serverPassword
+                "Server-Token": serverPassword
             }
         });
         if(!response.ok)
@@ -25,7 +113,7 @@ class Store {
 
         const data = new Uint8Array(await response.arrayBuffer());
         if(!data.byteLength) {
-            this.value = [];
+            this.entries.clear();
             
             const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
                 new Uint8Array()));
@@ -38,21 +126,14 @@ class Store {
         const iv = data.subarray(SALT_SIZE, SALT_SIZE + IV_SIZE);
         const ciphertext = data.subarray(SALT_SIZE + IV_SIZE);
 
-        const [, key] = await deriveKey(this.clientPassword, salt);
-
+        const [, key] = await deriveKey(clientPassword, salt);
         const plaintext = await decrypt(iv, ciphertext, key);
-
         const store = JSON.parse(new TextDecoder().decode(plaintext));
 
-        // Validate store
-        if(!Array.isArray(store))
-            throw new Error("Store was invalid");
-
+        this.entries.clear();
         for(const entry of store)
-            if(typeof entry !== "string")
-                throw new Error("Entry was invalid in store");
-
-        this.value = store;
+            this.entries.add(new Entry(entry.name, entry.tags, entry.username,
+                entry.password));
 
         // Hash the store
         const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
@@ -60,11 +141,12 @@ class Store {
         this.storeHash = btoa(String.fromCodePoint(...hash));
     }
 
-    async commit() {
-        const plaintext = new TextEncoder().encode(JSON.stringify(this.value));
+    async commit(serverPassword, clientPassword) {
+        const plaintext = new TextEncoder().encode(
+            JSON.stringify(Array.from(this.entries)));
 
         // Encrypt plaintext
-        const [salt, key] = await deriveKey(this.clientPassword);
+        const [salt, key] = await deriveKey(clientPassword);
 
         const [iv, ciphertext] = await encrypt(plaintext, key);
 
@@ -77,7 +159,7 @@ class Store {
         const response = await fetch("store", {
             "method": "POST",
             "headers": {
-                "Server-Token": this.serverPassword,
+                "Server-Token": serverPassword,
                 "Store-Hash": this.storeHash
             },
             "body": data
@@ -88,6 +170,44 @@ class Store {
         const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
             data));
         this.storeHash = btoa(String.fromCodePoint(...hash));
+    }
+
+    insert(entry) {
+        this.entries.add(entry);
+    }
+
+    erase(entry) {
+        this.entries.delete(entry);
+    }
+
+    draw() {
+        // Clear store
+        const oldBodyElement = STORE_ELEMENT.querySelector("tbody");
+        if(oldBodyElement)
+            oldBodyElement.remove();
+
+        const oldFootElement = STORE_ELEMENT.querySelector("tfoot");
+        if(oldFootElement)
+            oldFootElement.remove();
+
+        // Add entries
+        const bodyElement = document.createElement("tbody");
+        STORE_ELEMENT.appendChild(bodyElement);
+
+        for(const entry of this.entries)
+            bodyElement.appendChild(entry.createElement());
+
+        // Add footer
+        const footElement = document.createElement("tfoot");
+        STORE_ELEMENT.appendChild(footElement);
+
+        const rowElement = document.createElement("tr");
+        footElement.appendChild(rowElement);
+
+        const dataElement = document.createElement("td");
+        dataElement.colSpan = 4;
+        dataElement.innerText = "Total: " + this.entries.size;
+        rowElement.appendChild(dataElement);
     }
 }
 
@@ -133,89 +253,39 @@ async function decrypt(iv, ciphertext, key) {
 }
 
 async function loadEvent() {
-    const serverPassword = document.getElementById("server_password");
-    if(!serverPassword.value) {
-        alert("Invalid server password");
-        return;
-    }
-
-    store.serverPassword = serverPassword.value;
-
-    const clientPassword = document.getElementById("client_password");
-    if(!clientPassword.value) {
-        alert("Invalid client password");
-        return;
-    }
-
-    store.clientPassword = clientPassword.value;
-
     try {
-        await store.load();
+        await store.load(SERVER_PASSWORD_ELEMENT.value,
+            CLIENT_PASSWORD_ELEMENT.value);
+
+        store.draw();
     } catch(e) {
         alert("Error occurred while loading store");
         return;
     }
+}
 
-    const storeElement = document.getElementById("store");
+function insertEvent() {
+    store.insert(new Entry(INSERT_NAME_ELEMENT.value,
+        INSERT_TAGS_ELEMENT.value.split(","), INSERT_USERNAME_ELEMENT.value,
+        INSERT_PASSWORD_ELEMENT.value));
         
-    // Clear children
-    while(storeElement.firstChild)
-        storeElement.removeChild(storeElement.lastChild);
-
-    // Populate children
-    for(const entry of store.value) {
-        const entryElement = document.createElement("li");
-        entryElement.innerText = entry;
-        storeElement.appendChild(entryElement);
-    }
+    store.draw();
 }
 
-async function insertEvent() {
-    const serverPassword = document.getElementById("server_password");
-    if(!serverPassword.value) {
-        alert("Invalid server password");
-        return;
-    }
-
-    store.serverPassword = serverPassword.value;
-
-    const clientPassword = document.getElementById("client_password");
-    if(!clientPassword.value) {
-        alert("Invalid client password");
-        return;
-    }
-
-    store.clientPassword = clientPassword.value;
-
-    const textElement = document.getElementById("insert_text");
-    if(!textElement.value) {
-        alert("Invalid input");
-        return;
-    }
-
-    const entry = textElement.value;
-    
-    store.value.push(entry);
-
+async function commitEvent() {
     try {
-        await store.commit();
+        await store.commit(SERVER_PASSWORD_ELEMENT.value,
+            CLIENT_PASSWORD_ELEMENT.value);
     } catch(e) {
-        store.value.pop();
-        alert("Error updating store");
+        alert("Error committing store");
         return;
     }
-
-    const entryElement = document.createElement("li");
-    entryElement.innerText = entry;
-    document.getElementById("store").appendChild(entryElement);
 }
 
-async function init() {
-    const loadButtonElement = document.getElementById("load_button");
-    loadButtonElement.addEventListener("mousedown", loadEvent);
+// Initialization
 
-    const insertButtonElement = document.getElementById("insert_button");
-    insertButtonElement.addEventListener("mousedown", insertEvent);
-}
+LOAD_BUTTON_ELEMENT.addEventListener("mousedown", loadEvent);
+INSERT_BUTTON_ELEMENT.addEventListener("mousedown", insertEvent);
+COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", commitEvent);
 
-init();
+store.draw();

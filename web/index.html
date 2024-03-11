@@ -3,16 +3,137 @@
         <title>passman</title>
 
         <script src="index.js" defer></script>
+
+        <style>
+            table.store {
+                border-collapse: collapse;
+
+                col.first {
+                    border-left: 3px solid rgb(80, 80, 80);
+                }
+
+                col.last {
+                    border-right: 3px solid rgb(80, 80, 80);
+                }
+
+                thead {
+                    background-color: rgb(180, 180, 180);
+
+                    th {
+                        border-top: 3px solid rgb(80, 80, 80);
+                    }
+                }
+
+                tbody {
+                    tr:nth-child(even) {
+                        background-color: rgb(230, 230, 230);
+                    }
+
+                    tr:first-child {
+                        th, td:not(:last-child) {
+                            border-top: 2px solid rgb(80, 80, 80);
+                        }
+                    }
+
+                    tr:last-child {
+                        th, td:not(:last-child) {
+                            border-bottom: 2px solid rgb(80, 80, 80);
+                        }
+                    }
+
+                    th {
+                        text-align: left;
+                        font-weight: normal;
+                    }
+
+                    th:last-child, td:last-child {
+                        border: none;
+                        background-color: rgb(255, 255, 255);
+                    }
+                }
+
+                tfoot {
+                    background-color: rgb(210, 210, 210);
+
+                    td {
+                        border-bottom: 3px solid rgb(80, 80, 80);
+                        text-align: center;
+                    }
+                }
+
+                th, td {
+                    border: 1px solid rgb(80, 80, 80);
+                    padding: 5px;
+                }
+
+                input {
+                    border: none;
+                    background-color: inherit;
+                    width: 80px;
+                }
+
+                button {
+                    color: red;
+                    font-weight: bold;
+                }
+            }
+
+            table.insert {
+                display: inline-block;
+                border-collapse: collapse;
+
+                td {
+                    border: 3px solid rgb(80, 80, 80);
+                    padding: 4px;
+                }
+
+                td:last-child {
+                    border: none;
+                }
+
+                input {
+                    width: 80px;
+                }
+            }
+        </style>
     </head>
     <body>
         <h1>passman</h1>
-        <input type="text" id="server_password" placeholder="server password">
+        <input type="text" id="server_password" placeholder="Server password">
         <br>
-        <input type="text" id="client_password" placeholder="client password">
+        <input type="text" id="client_password" placeholder="Client password">
         <button id="load_button">Load</button>
         <br><br>
-        <input type="text" id="insert_text">
-        <button id="insert_button">Submit</button>
-        <ul id="store"></ul>
+        <table class="insert">
+            <tbody>
+                <tr>
+                    <td><input type="text" id="insert_name" placeholder="Name"></td>
+                    <td><input type="text" id="insert_tags" placeholder="Tags"></td>
+                    <td><input type="text" id="insert_username" placeholder="Username"></td>
+                    <td><input type="text" id="insert_password" placeholder="Password"></td>
+                    <td><button id="insert_button">Insert</button></td>
+                </tr>
+            </tbody>
+        </table>
+        <br><br>
+        <button id="commit_button">Commit</button>
+        <br><br>
+        <table id="store" class="store">
+            <colgroup>
+                <col class="first">
+                <col span="2">
+                <col class="last">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Tags</th>
+                    <th>Username</th>
+                    <th>Password</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+        </table>
     </body>
 </html>

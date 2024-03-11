@@ -323,8 +323,7 @@ namespace passman::http {
             std::cout << "Authorized ";
         std::cout << method_str << " request for " << uri;
         if(http_request.body)
-            std::cout << " with body (" << http_request.body->size() << ") "
-                << *http_request.body;
+            std::cout << " with body (" << http_request.body->size() << ")";
         std::cout << std::endl;
         
         co_return return_type::VALID;
