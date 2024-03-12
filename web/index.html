@@ -5,6 +5,38 @@
         <script src="index.js" defer></script>
 
         <style>
+            .groups {
+                margin-top: 5px;
+                margin-bottom: 5px;
+
+                .group {
+                    textarea {
+                        vertical-align: middle;
+                        margin-right: 5px;
+                        resize: none;
+                        word-break: break-all;
+                    }
+
+                    input[type="text"] {
+                        vertical-align: middle;
+                        margin: 5px;
+                        text-align: center;
+                        width: 30px;
+                    }
+
+                    button {
+                        vertical-align: middle;
+                        margin-left: 5px;
+                        color: red;
+                        font-weight: bold;
+                    }
+                }
+
+                .group:not(:first-child) {
+                    margin-top: 5px;
+                }
+            }
+
             table.store {
                 border-collapse: collapse;
 
@@ -99,6 +131,12 @@
     </head>
     <body>
         <h1>passman</h1>
+        <input id="generate_text" type="text" readonly="true">
+        <button id="generate_button">Generate</button>
+        <div id="password_strength"></div>
+        <div id="groups" class="groups"></div>
+        <button id="add_group_button">New Group</button>
+        <br><br>
         <input type="text" id="server_password" placeholder="Server password">
         <br>
         <input type="text" id="client_password" placeholder="Client password">

@@ -8,6 +8,12 @@ const KDF_ITERATIONS = 1000000;
 
 // Document constants
 
+const GENERATE_TEXT_ELEMENT = document.getElementById("generate_text");
+const GENERATE_BUTTON_ELEMENT = document.getElementById("generate_button");
+const PASSWORD_STRENGTH_ELEMENT = document.getElementById("password_strength");
+const GROUPS_ELEMENT = document.getElementById("groups");
+const ADD_GROUP_BUTTON_ELEMENT = document.getElementById("add_group_button");
+
 const SERVER_PASSWORD_ELEMENT = document.getElementById("server_password");
 const CLIENT_PASSWORD_ELEMENT = document.getElementById("client_password");
 const LOAD_BUTTON_ELEMENT = document.getElementById("load_button");
@@ -46,7 +52,7 @@ class Entry {
         nameTextElement.type = "text";
         nameTextElement.value = this.name;
         nameTextElement.addEventListener("input", () => {
-            this.name = nameTextElement.value;
+            this.name = nameTextElement.value.trim();
         });
         nameElement.appendChild(nameTextElement);
 
@@ -55,9 +61,16 @@ class Entry {
 
         const tagsTextElement = document.createElement("input");
         tagsTextElement.type = "text";
-        tagsTextElement.value = this.tags.toString();
+        tagsTextElement.value = this.tags.join(", ");
         tagsTextElement.addEventListener("input", () => {
-            this.tags = tagsTextElement.value.split(",");
+            this.tags = [];
+
+            for(const tag of tagsTextElement.value.split(",")) {
+                const trimmed = tag.trim();
+
+                if(trimmed)
+                    this.tags.push(trimmed);
+            }
         });
         tagsElement.appendChild(tagsTextElement);
 
@@ -68,7 +81,7 @@ class Entry {
         usernameTextElement.type = "text";
         usernameTextElement.value = this.username;
         usernameTextElement.addEventListener("input", () => {
-            this.username = usernameTextElement.value;
+            this.username = usernameTextElement.value.trim();
         });
         usernameElement.appendChild(usernameTextElement);
 
@@ -79,7 +92,7 @@ class Entry {
         passwordTextElement.type = "text";
         passwordTextElement.value = this.password;
         passwordTextElement.addEventListener("input", () => {
-            this.password = passwordTextElement.value;
+            this.password = passwordTextElement.value.trim();
         });
         passwordElement.appendChild(passwordTextElement);
 
@@ -211,9 +224,83 @@ class Store {
     }
 }
 
+class Group {
+    options;
+    count;
+
+    constructor(options, count) {
+        this.options = options;
+        this.count = count;
+    }
+
+    createElement() {
+        const divElement = document.createElement("div");
+        divElement.classList.add("group");
+
+        const optionsElement = document.createElement("textarea");
+        optionsElement.cols = 32;
+        optionsElement.rows = 4;
+        optionsElement.placeholder = "Enter characters";
+        optionsElement.value = this.options;
+        optionsElement.addEventListener("input", () => {
+            this.options = optionsElement.value.replaceAll(/\s/g, "");
+        });
+        divElement.appendChild(optionsElement);
+
+        const labelElement = document.createElement("label");
+        labelElement.innerText = "Count:";
+        divElement.appendChild(labelElement);
+
+        const countElement = document.createElement("input");
+        countElement.type = "text";
+        countElement.value = this.count;
+        countElement.addEventListener("input", () => {
+            const val = Number(countElement.value);
+
+            if(!isNaN(val) && val >= 0)
+                this.count = val;
+        });
+        divElement.appendChild(countElement);
+
+        const deleteElement = document.createElement("button");
+        deleteElement.innerText = "X";
+        deleteElement.addEventListener("mousedown", () => {
+            generator.erase(this);
+            generator.draw();
+        });
+        divElement.appendChild(deleteElement);
+
+        return divElement;
+    }
+}
+
+class Generator {
+    groups = new Set([new Group("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST\
+UVWXYZ1234567890-=!@#$%^&*()_+[]|{};:,./<>?", 32)]);
+
+    insert(group) {
+        this.groups.add(group);
+    }
+
+    erase(group) {
+        this.groups.delete(group);
+    }
+
+    draw() {
+        // Clear groups
+        for(const groupElement of GROUPS_ELEMENT.querySelectorAll("div.group"))
+            groupElement.remove();
+
+        // Add groups
+        for(const group of this.groups)
+            GROUPS_ELEMENT.appendChild(group.createElement());
+    }
+}
+
 // Global variables
 
 const store = new Store();
+const generator = new Generator();
 
 // Free functions
 
@@ -252,6 +339,46 @@ async function decrypt(iv, ciphertext, key) {
         }, key, ciphertext));
 }
 
+// Uniform random value in the range [0, upperBound)
+function randomValue(upperBound) {
+    if(upperBound > 2 ** 16)
+        throw new Error("Upper bound exceeded 65536");
+
+    // Get unbiased random number
+    const max = 2n ** 64n;
+    const mod = BigInt(upperBound);
+    const limit = max - max % mod;
+
+    const index = new BigUint64Array(1);
+
+    // The probability of looping again is at most 2^16 / 2^64 = 2^-48
+    // On my machine, 1 million iterations takes under .2 second
+    // The probability of looping 1 million times is 2^-48000000
+    // Realistically the user will never wait for very long
+    do {
+        crypto.getRandomValues(index);
+    } while(index[0] >= limit);
+
+    return Number(index[0] % mod);
+}
+
+function choice(options) {
+    return options[randomValue(options.length)];
+}
+
+function shuffle(values) {
+    for(let i = values.length - 1; i > 0; --i) {
+        const j = randomValue(i + 1);
+        
+        // Swap
+        const tmp = values[i];
+        values[i] = values[j];
+        values[j] = tmp;
+    }
+
+    return values;
+}
+
 async function loadEvent() {
     try {
         await store.load(SERVER_PASSWORD_ELEMENT.value,
@@ -282,10 +409,44 @@ async function commitEvent() {
     }
 }
 
+function addGroupEvent() {
+    generator.insert(new Group("", 1));
+
+    generator.draw();
+}
+
+function generateEvent() {
+    let password = "";
+    let length = 0;
+    let combinations = BigInt(1);
+
+    // Generate password
+    for(const group of generator.groups) {
+        if(group.options.length) {
+            for(let i = 0; i < group.count; ++i)
+                password += choice(group.options);
+
+            length += group.count;
+            combinations *= BigInt(group.options.length) ** BigInt(group.count);
+        }
+    }
+
+    password = shuffle(Array.from(password)).join("");
+
+    GENERATE_TEXT_ELEMENT.value = password;
+    PASSWORD_STRENGTH_ELEMENT.innerText = "Length: " + length +
+        ", Combinations: " + combinations;
+}
+
 // Initialization
 
+GENERATE_BUTTON_ELEMENT.addEventListener("mousedown", generateEvent)
+ADD_GROUP_BUTTON_ELEMENT.addEventListener("mousedown", addGroupEvent);
 LOAD_BUTTON_ELEMENT.addEventListener("mousedown", loadEvent);
 INSERT_BUTTON_ELEMENT.addEventListener("mousedown", insertEvent);
 COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", commitEvent);
 
+generator.draw();
 store.draw();
+
+generateEvent();
