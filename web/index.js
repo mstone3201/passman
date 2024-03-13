@@ -174,7 +174,12 @@ class Store {
 
         const [, key] = await deriveKey(clientPassword, salt);
         const plaintext = await decrypt(iv, ciphertext, key);
-        const store = JSON.parse(new TextDecoder().decode(plaintext));
+
+        // Decompress
+        const decompressed = await decompress(plaintext);
+
+        // Parse store
+        const store = JSON.parse(new TextDecoder().decode(decompressed));
 
         this.entries.clear();
         for(const entry of store)
@@ -188,8 +193,11 @@ class Store {
     }
 
     async commit(serverPassword, clientPassword) {
-        const plaintext = new TextEncoder().encode(
+        const decompressed = new TextEncoder().encode(
             JSON.stringify(Array.from(this.entries)));
+
+        // Compress
+        const plaintext = await compress(decompressed);
 
         // Encrypt plaintext
         const [salt, key] = await deriveKey(clientPassword);
@@ -319,10 +327,10 @@ UVWXYZ1234567890-=!@#$%^&*()_+[]|{};:,./<>?", 32)]);
 const store = new Store();
 const generator = new Generator();
 const sortOrder = {
-    "category": "name",
-    "name": false,
-    "date": false,
-    "username": false
+    category: "name",
+    name: false,
+    date: false,
+    username: false
 };
 
 // Free functions
@@ -360,6 +368,64 @@ async function decrypt(iv, ciphertext, key) {
             "iv": iv,
             "tagLength": TAG_SIZE
         }, key, ciphertext));
+}
+
+async function compress(decompressed) {
+    const gzip = new CompressionStream("gzip");
+        
+    const gzipWriter = gzip.writable.getWriter();
+    gzipWriter.write(decompressed);
+    gzipWriter.close();
+
+    const chunks = [];
+    const gzipReader = gzip.readable.getReader();
+    while(true) {
+        const {value, done} = await gzipReader.read();
+        if(done) break;
+
+        chunks.push(value);
+    }
+
+    const compressed = new Uint8Array(chunks.reduce(
+        (acc, val) => acc + val.byteLength, 0
+    ));
+    let offset = 0;
+    for(const chunk of chunks) {
+        compressed.set(chunk, offset);
+
+        offset += chunk.byteLength;
+    }
+
+    return compressed;
+}
+
+async function decompress(compressed) {
+    const gzip = new DecompressionStream("gzip");
+        
+    const gzipWriter = gzip.writable.getWriter();
+    gzipWriter.write(compressed);
+    gzipWriter.close();
+
+    const chunks = [];
+    const gzipReader = gzip.readable.getReader();
+    while(true) {
+        const {value, done} = await gzipReader.read();
+        if(done) break;
+
+        chunks.push(value);
+    }
+
+    const decompressed = new Uint8Array(chunks.reduce(
+        (acc, val) => acc + val.byteLength, 0
+    ));
+    let offset = 0;
+    for(const chunk of chunks) {
+        decompressed.set(chunk, offset);
+
+        offset += chunk.byteLength;
+    }
+
+    return decompressed;
 }
 
 // Uniform random value in the range [0, upperBound)
