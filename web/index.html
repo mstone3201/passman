@@ -7,6 +7,23 @@
         <script src="index.js" defer></script>
 
         <style>
+            body {
+                max-width: 750px;
+                margin-left: auto;
+                margin-right: auto;
+                background-color: rgb(220, 229, 233);
+                font-family: Calibri,  sans-serif;
+            }
+
+            h1 {
+                font-size: 75;
+                text-align: center;
+                text-decoration: underline;
+                background-color: rgb(199, 208, 212);
+                padding-bottom: 25px;
+                margin-bottom: 15px;
+            }
+
             .groups {
                 margin-top: 5px;
                 margin-bottom: 5px;
@@ -43,16 +60,23 @@
                 display: inline-block;
                 border-collapse: collapse;
 
-                td {
-                    border: 3px solid rgb(80, 80, 80);
-                    padding: 4px;
-                }
+                tbody {
+                    background-color: rgb(255, 255, 255);
 
-                td:last-child {
-                    border: none;
+                    td {
+                        border: 3px solid rgb(80, 80, 80);
+                        padding: 4px;
+                    }
+
+                    td:last-child {
+                        border: none;
+                        background-color: rgb(220, 229, 233);
+                    }
                 }
 
                 input {
+                    border: none;
+                    background-color: inherit;
                     width: 80px;
                 }
             }
@@ -94,6 +118,8 @@
                 }
 
                 tbody {
+                    background-color: rgb(255, 255, 255);
+                    
                     tr:not(.show) {
                         display: none;
                     }
@@ -112,7 +138,7 @@
 
                     th:last-child, td:last-child {
                         border: none;
-                        background-color: rgb(255, 255, 255);
+                        background-color: rgb(220, 229, 233);
                     }
 
                     td input[type="text"].date {
