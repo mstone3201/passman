@@ -17,13 +17,16 @@ foreach(WEB_FILE ${WEB_FILES})
     # Remove comments
     string(REGEX REPLACE "//[^\n]*|/\\*[^*]*\\*/" "" WEB_CONTENTS
         "${WEB_CONTENTS}")
-    string(REPLACE "\n" "" WEB_CONTENTS "${WEB_CONTENTS}")
+    # Escape special sequences
     string(REPLACE "\\" "\\\\" WEB_CONTENTS "${WEB_CONTENTS}")
+    string(REPLACE "\"" "\\\"" WEB_CONTENTS "${WEB_CONTENTS}")
+    # Each line is its own string literal to avoid size constraints
+    string(REPLACE "\n" "\"\"" WEB_CONTENTS "${WEB_CONTENTS}")
 
     set(${WEB_VAR} "${WEB_CONTENTS}")
 endforeach()
 
-configure_file(configure/web.hpp include/web.hpp ESCAPE_QUOTES @ONLY)
+configure_file(configure/web.hpp include/web.hpp @ONLY)
 
 # Dependencies
 find_package(OpenSSL REQUIRED)

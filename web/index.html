@@ -1,5 +1,7 @@
 <html>
     <head>
+        <meta charset="utf-8">
+        
         <title>passman</title>
 
         <script src="index.js" defer></script>
@@ -27,7 +29,7 @@
                     button {
                         vertical-align: middle;
                         margin-left: 5px;
-                        color: red;
+                        color: rgb(255, 0, 0);
                         font-weight: bold;
                     }
                 }
@@ -35,6 +37,28 @@
                 .group:not(:first-child) {
                     margin-top: 5px;
                 }
+            }
+
+            table.insert {
+                display: inline-block;
+                border-collapse: collapse;
+
+                td {
+                    border: 3px solid rgb(80, 80, 80);
+                    padding: 4px;
+                }
+
+                td:last-child {
+                    border: none;
+                }
+
+                input {
+                    width: 80px;
+                }
+            }
+
+            .search {
+                margin-bottom: 5px;
             }
 
             table.store {
@@ -53,34 +77,46 @@
 
                     th {
                         border-top: 3px solid rgb(80, 80, 80);
+
+                        a {
+                            color: inherit;
+                            text-decoration: none;
+                        }
+
+                        #arrow {
+                            font-size: xx-small;
+                        }
+                    }
+
+                    th.sort {
+                        background-color: rgb(165, 165, 165);
                     }
                 }
 
                 tbody {
-                    tr:nth-child(even) {
-                        background-color: rgb(230, 230, 230);
+                    tr:not(.show) {
+                        display: none;
                     }
 
-                    tr:first-child {
+                    tr.show:first-child {
                         th, td:not(:last-child) {
                             border-top: 2px solid rgb(80, 80, 80);
                         }
                     }
 
-                    tr:last-child {
+                    tr.show:last-child {
                         th, td:not(:last-child) {
                             border-bottom: 2px solid rgb(80, 80, 80);
                         }
                     }
 
-                    th {
-                        text-align: left;
-                        font-weight: normal;
-                    }
-
                     th:last-child, td:last-child {
                         border: none;
                         background-color: rgb(255, 255, 255);
+                    }
+
+                    td input[type="text"].date {
+                        text-align: center;
                     }
                 }
 
@@ -105,26 +141,8 @@
                 }
 
                 button {
-                    color: red;
+                    color: rgb(255, 0, 0);
                     font-weight: bold;
-                }
-            }
-
-            table.insert {
-                display: inline-block;
-                border-collapse: collapse;
-
-                td {
-                    border: 3px solid rgb(80, 80, 80);
-                    padding: 4px;
-                }
-
-                td:last-child {
-                    border: none;
-                }
-
-                input {
-                    width: 80px;
                 }
             }
         </style>
@@ -156,22 +174,45 @@
         <br><br>
         <button id="commit_button">Commit</button>
         <br><br>
+        <div class="search">
+            <input type="text" id="search_query" placeholder="Enter regex query"></input>
+        </div>
         <table id="store" class="store">
             <colgroup>
                 <col class="first">
-                <col span="2">
+                <col span="3">
                 <col class="last">
             </colgroup>
             <thead>
                 <tr>
-                    <th>Name</th>
+                    <th id="name">
+                        <a href="#">
+                            Name
+                            <span id="arrow"></span>
+                        </a>
+                    </th>
                     <th>Tags</th>
-                    <th>Username</th>
+                    <th id="date">
+                        <a href="#">
+                            Date
+                            <span id="arrow"></span>
+                        </a>
+                    </th>
+                    <th id="username">
+                        <a href="#">
+                            Username
+                            <span id="arrow"></span>
+                        </a>
+                    </th>
                     <th>Password</th>
                 </tr>
             </thead>
             <tbody></tbody>
-            <tfoot></tfoot>
+            <tfoot>
+                <tr>
+                    <td id="store_total" colspan="5"></td>
+                </tr>
+            </tfoot>
         </table>
     </body>
 </html>

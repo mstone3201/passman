@@ -6,6 +6,10 @@ const IV_SIZE = 32;
 const TAG_SIZE = 128;
 const KDF_ITERATIONS = 1000000;
 
+const DELETE_SYMBOL = "X";
+const UP_ARROW_SYMBOL = "⮝";
+const DOWN_ARROW_SYMBOL = "⮟";
+
 // Document constants
 
 const GENERATE_TEXT_ELEMENT = document.getElementById("generate_text");
@@ -25,25 +29,37 @@ const INSERT_PASSWORD_ELEMENT = document.getElementById("insert_password");
 const INSERT_BUTTON_ELEMENT = document.getElementById("insert_button");
 
 const COMMIT_BUTTON_ELEMENT = document.getElementById("commit_button");
+const SEARCH_QUERY_ELEMENT = document.getElementById("search_query");
 const STORE_ELEMENT = document.getElementById("store");
+const STORE_TOTAL_ELEMENT = document.getElementById("store_total");
 
 // Class definitions
 
 class Entry {
     name;
     tags = [];
+    date;
     username;
     password;
 
-    constructor(name, tags, username, password) {
+    constructor(name, tags, date, username, password) {
         this.name = name;
         this.tags = tags;
+        this.date = date;
         this.username = username;
         this.password = password;
     }
 
     createElement() {
         const rowElement = document.createElement("tr");
+        rowElement.entry = this;
+        rowElement.classList.add("show");
+
+        const dateTextElement = document.createElement("input");
+        dateTextElement.type = "text";
+        dateTextElement.classList.add("date");
+        dateTextElement.readOnly = true;
+        dateTextElement.value = getDateString(this.date);
 
         const nameElement = document.createElement("th");
         rowElement.appendChild(nameElement);
@@ -53,6 +69,9 @@ class Entry {
         nameTextElement.value = this.name;
         nameTextElement.addEventListener("input", () => {
             this.name = nameTextElement.value.trim();
+
+            this.date = Date.now();
+            dateTextElement.value = getDateString(this.date); 
         });
         nameElement.appendChild(nameTextElement);
 
@@ -71,8 +90,16 @@ class Entry {
                 if(trimmed)
                     this.tags.push(trimmed);
             }
+
+            this.date = Date.now();
+            dateTextElement.value = getDateString(this.date);
         });
         tagsElement.appendChild(tagsTextElement);
+
+        const dateElement = document.createElement("td");
+        rowElement.appendChild(dateElement);
+
+        dateElement.appendChild(dateTextElement);
 
         const usernameElement = document.createElement("td");
         rowElement.appendChild(usernameElement);
@@ -82,6 +109,9 @@ class Entry {
         usernameTextElement.value = this.username;
         usernameTextElement.addEventListener("input", () => {
             this.username = usernameTextElement.value.trim();
+
+            this.date = Date.now();
+            dateTextElement.value = getDateString(this.date);
         });
         usernameElement.appendChild(usernameTextElement);
 
@@ -93,6 +123,9 @@ class Entry {
         passwordTextElement.value = this.password;
         passwordTextElement.addEventListener("input", () => {
             this.password = passwordTextElement.value.trim();
+
+            this.date = Date.now();
+            dateTextElement.value = getDateString(this.date);
         });
         passwordElement.appendChild(passwordTextElement);
 
@@ -100,7 +133,7 @@ class Entry {
         rowElement.appendChild(deleteElement);
 
         const buttonElement = document.createElement("button");
-        buttonElement.innerText = "X";
+        buttonElement.innerText = DELETE_SYMBOL;
         buttonElement.addEventListener("mousedown", () => {
             store.erase(this);
             store.draw();
@@ -145,8 +178,8 @@ class Store {
 
         this.entries.clear();
         for(const entry of store)
-            this.entries.add(new Entry(entry.name, entry.tags, entry.username,
-                entry.password));
+            this.entries.add(new Entry(entry.name, entry.tags, entry.date,
+                entry.username, entry.password));
 
         // Hash the store
         const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
@@ -194,33 +227,17 @@ class Store {
     }
 
     draw() {
+        const bodyElement = STORE_ELEMENT.querySelector("tbody");
         // Clear store
-        const oldBodyElement = STORE_ELEMENT.querySelector("tbody");
-        if(oldBodyElement)
-            oldBodyElement.remove();
-
-        const oldFootElement = STORE_ELEMENT.querySelector("tfoot");
-        if(oldFootElement)
-            oldFootElement.remove();
+        for(const entry of bodyElement.querySelectorAll("tr"))
+            entry.remove();
 
         // Add entries
-        const bodyElement = document.createElement("tbody");
-        STORE_ELEMENT.appendChild(bodyElement);
-
         for(const entry of this.entries)
             bodyElement.appendChild(entry.createElement());
 
-        // Add footer
-        const footElement = document.createElement("tfoot");
-        STORE_ELEMENT.appendChild(footElement);
-
-        const rowElement = document.createElement("tr");
-        footElement.appendChild(rowElement);
-
-        const dataElement = document.createElement("td");
-        dataElement.colSpan = 4;
-        dataElement.innerText = "Total: " + this.entries.size;
-        rowElement.appendChild(dataElement);
+        // Update total
+        STORE_TOTAL_ELEMENT.innerText = "Total: " + this.entries.size;
     }
 }
 
@@ -263,7 +280,7 @@ class Group {
         divElement.appendChild(countElement);
 
         const deleteElement = document.createElement("button");
-        deleteElement.innerText = "X";
+        deleteElement.innerText = DELETE_SYMBOL;
         deleteElement.addEventListener("mousedown", () => {
             generator.erase(this);
             generator.draw();
@@ -301,6 +318,12 @@ UVWXYZ1234567890-=!@#$%^&*()_+[]|{};:,./<>?", 32)]);
 
 const store = new Store();
 const generator = new Generator();
+const sortOrder = {
+    "category": "name",
+    "name": false,
+    "date": false,
+    "username": false
+};
 
 // Free functions
 
@@ -379,6 +402,10 @@ function shuffle(values) {
     return values;
 }
 
+function getDateString(date) {
+    return new Date(date).toLocaleDateString("en-US");
+}
+
 async function loadEvent() {
     try {
         await store.load(SERVER_PASSWORD_ELEMENT.value,
@@ -389,14 +416,26 @@ async function loadEvent() {
         alert("Error occurred while loading store");
         return;
     }
+
+    // Sort store
+    sortOrder.category = "name";
+    sortOrder.name = false;
+    sortStoreEvent();
+
+    // Reset search query
+    SEARCH_QUERY_ELEMENT.value = "";
 }
 
 function insertEvent() {
     store.insert(new Entry(INSERT_NAME_ELEMENT.value,
-        INSERT_TAGS_ELEMENT.value.split(","), INSERT_USERNAME_ELEMENT.value,
-        INSERT_PASSWORD_ELEMENT.value));
+        INSERT_TAGS_ELEMENT.value.split(","), Date.now(),
+        INSERT_USERNAME_ELEMENT.value, INSERT_PASSWORD_ELEMENT.value));
         
     store.draw();
+
+    sortStoreEvent();
+
+    SEARCH_QUERY_ELEMENT.value = "";
 }
 
 async function commitEvent() {
@@ -417,7 +456,6 @@ function addGroupEvent() {
 
 function generateEvent() {
     let password = "";
-    let length = 0;
     let combinations = BigInt(1);
 
     // Generate password
@@ -426,7 +464,6 @@ function generateEvent() {
             for(let i = 0; i < group.count; ++i)
                 password += choice(group.options);
 
-            length += group.count;
             combinations *= BigInt(group.options.length) ** BigInt(group.count);
         }
     }
@@ -434,19 +471,116 @@ function generateEvent() {
     password = shuffle(Array.from(password)).join("");
 
     GENERATE_TEXT_ELEMENT.value = password;
-    PASSWORD_STRENGTH_ELEMENT.innerText = "Length: " + length +
+    PASSWORD_STRENGTH_ELEMENT.innerText = "Length: " + password.length +
         ", Combinations: " + combinations;
+}
+
+function searchEvent(regex) {
+    if(!regex) {
+        for(const entry of STORE_ELEMENT.querySelectorAll("tbody tr"))
+            entry.classList.add("show");
+
+        STORE_TOTAL_ELEMENT.innerText = "Total: " + store.entries.size;
+
+        return;
+    }
+
+    try {
+        const regexp = new RegExp(regex);
+
+        let count = 0;
+        for(const entry of STORE_ELEMENT.querySelectorAll("tbody tr")) {
+            if(entry.entry.name.match(regexp) ||
+                entry.entry.tags.some((tag) => tag.match(regexp)) ||
+                getDateString(entry.entry.date).match(regexp) ||
+                entry.entry.username.match(regexp))
+            {
+                entry.classList.add("show");
+
+                ++count;
+            } else
+                entry.classList.remove("show");
+        }
+
+        STORE_TOTAL_ELEMENT.innerText = "Total: " + count;
+    } catch(e) {
+        return;
+    }
+}
+
+function sortStoreEvent() {
+    const bodyElement = STORE_ELEMENT.querySelector("tbody");
+
+    const entries = Array.from(bodyElement.querySelectorAll("tr"));
+    entries.sort((a, b) => {
+        const left = a.entry[sortOrder.category];
+        const right = b.entry[sortOrder.category];
+
+        if(left < right)
+            return sortOrder[sortOrder.category] ? 1 : -1;
+        if(left > right)
+            return sortOrder[sortOrder.category] ? -1 : 1;
+        
+        return 0;
+    });
+
+    for(const entry of entries)
+        bodyElement.appendChild(entry);
+
+    // Remove previous category sort class
+    STORE_ELEMENT.querySelector("thead th.sort").classList.remove("sort");
+
+    // Set this category to be sorted
+    const headElemement = STORE_ELEMENT.querySelector("thead th#"
+        + sortOrder.category);
+    headElemement.classList.add("sort");
+    headElemement.querySelector("#arrow").innerText =
+        sortOrder[sortOrder.category] ? UP_ARROW_SYMBOL : DOWN_ARROW_SYMBOL;
 }
 
 // Initialization
 
-GENERATE_BUTTON_ELEMENT.addEventListener("mousedown", generateEvent)
+GENERATE_BUTTON_ELEMENT.addEventListener("mousedown", generateEvent);
 ADD_GROUP_BUTTON_ELEMENT.addEventListener("mousedown", addGroupEvent);
 LOAD_BUTTON_ELEMENT.addEventListener("mousedown", loadEvent);
 INSERT_BUTTON_ELEMENT.addEventListener("mousedown", insertEvent);
 COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", commitEvent);
 
+SEARCH_QUERY_ELEMENT.addEventListener("input", () => {
+    searchEvent(SEARCH_QUERY_ELEMENT.value);
+});
+
+STORE_ELEMENT.querySelector("thead th#name").addEventListener("mousedown",
+    () => {
+        if(sortOrder.category != "name")
+            sortOrder.category = "name";
+        else
+            sortOrder.name = !sortOrder.name;
+        sortStoreEvent();
+    });
+STORE_ELEMENT.querySelector("thead th#date").addEventListener("mousedown",
+    () => {
+        if(sortOrder.category != "date")
+            sortOrder.category = "date";
+        else
+            sortOrder.date = !sortOrder.date;
+        sortStoreEvent();
+    });
+STORE_ELEMENT.querySelector("thead th#username").addEventListener("mousedown",
+    () => {
+        if(sortOrder.category != "username")
+            sortOrder.category = "username";
+        else
+            sortOrder.username = !sortOrder.username;
+        sortStoreEvent();
+    });
+
 generator.draw();
 store.draw();
+
+STORE_ELEMENT.querySelector("thead th#" + sortOrder.category).classList
+    .add("sort");
+for(const arrow of STORE_ELEMENT.querySelectorAll("thead th #arrow"))
+    arrow.innerText = DOWN_ARROW_SYMBOL;
 
 generateEvent();
