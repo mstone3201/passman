@@ -12,7 +12,7 @@
                 margin-left: auto;
                 margin-right: auto;
                 background-color: rgb(220, 229, 233);
-                font-family: Calibri,  sans-serif;
+                font-family: Calibri, sans-serif;
             }
 
             h1 {
@@ -21,7 +21,11 @@
                 text-decoration: underline;
                 background-color: rgb(199, 208, 212);
                 padding-bottom: 25px;
-                margin-bottom: 15px;
+                margin-bottom: 5px;
+            }
+
+            #auth_info {
+                margin-bottom: 5px;
             }
 
             .groups {
@@ -175,6 +179,7 @@
     </head>
     <body>
         <h1>passman</h1>
+        <div id="auth_info"><span id="auth_info_fails"></span><span id="auth_info_lock"></span></div>
         <input id="generate_text" type="text" readonly="true">
         <button id="generate_button">Generate</button>
         <div id="password_strength"></div>

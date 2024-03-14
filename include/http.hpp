@@ -19,7 +19,8 @@ namespace passman::http {
         INVALID,
         INDEX_HTML,
         INDEX_JS,
-        STORE
+        STORE,
+        AUTH_INFO
     };
 
     struct request {

@@ -1,13 +1,38 @@
 #include <iostream>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <unistd.h>
+#include <termios.h>
+#endif
+
+
 #include "server.hpp"
+
+void cin_echo(bool echo) {
+    #ifdef _WIN32
+    HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+
+    DWORD mode;
+    if(GetConsoleMode(handle, &mode))
+            SetConsoleMode(handle,
+                echo ? mode | ENABLE_ECHO_INPUT : mode & ~ENABLE_ECHO_INPUT);
+    #else
+    termios term;
+    if(!tcgetattr(STDIN_FILENO, &term)) {
+        term.c_lflag = mode ? term.c_lflag | ECHO : term.c_lflag & ~ECHO;
+        tcsetattr(STDIN_FILENO, TCSANOW, &term);
+    }
+    #endif
+}
 
 int main(int argc, char* argv[]) {
     // Incorrect program arguments
-    if(argc != 3) {
-        std::cout << "usage: passman <port> <password>" << std::endl
-            << "    <port>: integer in the range [0, 65535]" << std::endl
-            << "    <password>: string" << std::endl;
+    if(argc != 2) {
+        std::cout << "Usage: passman <port>" << std::endl
+            << "    <port>: integer in the range [0, 65535]" << std::endl;
         return 1;
     }
 
@@ -26,11 +51,33 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
-    std::string password(argv[2]);
+    // Get password
+    cin_echo(false);
+
+    std::string password;
+    std::cout << "Enter password: ";
+    std::getline(std::cin, password);
+    
+    // Clear password line
+    std::cout << "\r               \r";
+    std::cout.flush();
+
+    cin_echo(true);
+
+    // Trim password
+    std::string_view password_view(password);
+    const auto password_start = password_view.find_first_not_of(' ');
+    if(password_start == std::string::npos)
+        password_view = "none";
+    else {
+        password_view.remove_prefix(password_start);
+        const auto password_end = password_view.find_last_not_of(' ');
+        password_view.remove_suffix(password_view.size() - password_end - 1);
+    }
 
     // Create the server
     try {
-        passman::server server(port, password);
+        passman::server server(port, password_view);
 
         // Run the server in a separate thread
         std::thread server_thread([&server]() {
@@ -61,7 +108,7 @@ int main(int argc, char* argv[]) {
         // Let the server finish up its work
         server_thread.join();
     } catch(const passman::bad_password&) {
-        std::cout << "password incorrect" << std::endl;
+        std::cout << "Password incorrect" << std::endl;
         return 3;
     }
 

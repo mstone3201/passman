@@ -4,9 +4,6 @@
 #include "http_parse.hpp"
 #include "web.hpp"
 
-// TODO: remove debug print statements
-#include <iostream>
-
 namespace passman {
     std::shared_ptr<connection> connection::create(passman::server& server,
         asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket
@@ -40,22 +37,14 @@ namespace passman {
         ssl_socket(std::move(ssl_socket)),
         timer(server.io_context)
     {
-        std::cout << "Connection opened" << std::endl;
-        
         // Start timeout timer
         timer.expires_after(std::chrono::seconds(5));
         timer.async_wait([this](const asio::error_code& error) {
             // If the timer is cancelled it runs the handler immediately and is
             // given an operation_aborted error
-            if(!error) {
+            if(!error)
                 connection::ssl_socket.next_layer().cancel();
-                std::cout << "Connection timed out" << std::endl;
-            }
         });
-    }
-
-    connection::~connection() {
-        std::cout << "Connection closed" << std::endl;
     }
 
     asio::awaitable<void> connection::handle_request() {
@@ -81,7 +70,7 @@ namespace passman {
             std::array<char, 2048> buffer;
             std::string_view buffer_view;
             http::parser_coroutine parser = http::parse_request(buffer_view,
-                http_request, server.password);
+                http_request, server.password, server.is_locked());
 
             while(true) {
                 try {
@@ -103,6 +92,9 @@ namespace passman {
                     goto read_valid;
                 case http::parse_result::INVALID:
                     co_return;
+                case http::parse_result::AUTH_FAIL:
+                    server.auth_fail(ssl_socket.next_layer().remote_endpoint());
+                    co_return;
                 case http::parse_result::INCOMPLETE:
                     break;
                 }
@@ -116,23 +108,30 @@ namespace passman {
         switch(http_request.resource) {
         case http::resource::INDEX_HTML:
         case http::resource::INDEX_JS:
+        case http::resource::AUTH_INFO:
             if(http_request.method != http::request_method::GET)
                 co_return;
             break;
         case http::resource::STORE:
             if(http_request.method == http::request_method::POST) {
-                // POST requests are always authorized
+                // POST requests are already authorized
                 if(http_request.store_hash
                     && *http_request.store_hash == server.store_hash)
                 {
                     server.set_store(std::move(http_request.body.value_or("")));
                 } else
                     http_request.resource = http::resource::INVALID;
-            } else if(!http_request.authorized)
+            } else if(!http_request.authorized) {
                 // Respond to let the client know they are unauthorized
                 http_request.resource = http::resource::INVALID;
+                server.auth_fail(ssl_socket.next_layer().remote_endpoint());
+            }
             break;
         }
+
+        // Reset lock status
+        if(http_request.authorized)
+            server.unlock(ssl_socket.next_layer().remote_endpoint());
 
         // Write response
 
@@ -196,6 +195,24 @@ namespace passman {
             else
                 response.append("Content-Length: 0").append(http::HTTP_DELIM);
             break;
+        case http::resource::AUTH_INFO:
+            {
+                union {
+                    char data[24];
+                    std::uint64_t counter[3];
+                } info;
+                info.counter[0] = server.fail_count;
+                info.counter[1] =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        server.fail_time.time_since_epoch()).count();
+                info.counter[2] =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        server.lock_time.time_since_epoch()).count();
+                
+                response.append("Content-Length: 24").append(http::HTTP_DELIM)
+                    .append(info.data, 24);
+                break;
+            }
         }
 
         return response;

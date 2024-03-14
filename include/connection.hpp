@@ -16,7 +16,7 @@ namespace passman {
             asio::ssl::stream<asio::ip::tcp::socket>&& ssl_socket);
         connection(const connection&) = delete;
 
-        ~connection();
+        ~connection() = default;
 
         connection& operator=(const connection&) = delete;
 

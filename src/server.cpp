@@ -2,22 +2,30 @@
 
 #include <iostream>
 #include <filesystem>
-#include <fstream>
 
 #include "connection.hpp"
 #include "crypto.hpp"
 
 namespace passman {
-    const std::string STORE_FILENAME = "store";
+    constexpr std::uint8_t LOCK_FAIL_COUNT = 5;
+    constexpr std::uint8_t BAN_FAIL_COUNT = 25;
 
-    server::server(std::uint16_t port, const std::string& password) :
+    const std::string STORE_FILENAME = "store";
+    const std::string AUTH_LOG_FILENAME = "auth.log";
+    const std::string BAN_LOG_FILENAME = "ban.log";
+
+    server::server(std::uint16_t port, std::string_view password) :
         password(password),
         io_context(1),
         ssl_context(asio::ssl::context::method::tlsv13_server),
         acceptor(io_context,
             asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
         save_timer(io_context),
-        save_scheduled(false)
+        save_scheduled(false),
+        fail_count(0),
+        lock_fail_count(0),
+        auth_log_file(AUTH_LOG_FILENAME, std::ios::app),
+        ban_log_file(BAN_LOG_FILENAME, std::ios::app)
     {
         ssl_context.set_options(asio::ssl::context::default_workarounds
             | asio::ssl::context::single_dh_use);
@@ -106,13 +114,74 @@ namespace passman {
     asio::awaitable<void> server::listen() {
         while(true) {
             try {
+                asio::ip::tcp::socket socket =
+                    co_await acceptor.async_accept(asio::use_awaitable);
+
+                if(ban_fail_count[socket.remote_endpoint().address()] >=
+                    BAN_FAIL_COUNT)
+                {
+                    continue;
+                }
+
                 // This connection will be destroyed automatically when its
                 // coroutines finish
                 connection::create(*this,
-                    asio::ssl::stream<asio::ip::tcp::socket>(
-                        co_await acceptor.async_accept(asio::use_awaitable),
+                    asio::ssl::stream<asio::ip::tcp::socket>(std::move(socket),
                         ssl_context));
             } catch(...) {}
         }
+    }
+
+    void server::auth_fail(const asio::ip::tcp::endpoint& endpoint) {
+        // If server is already locked, don't do anything
+        if(is_locked())
+            return;
+
+        // Record failed authentication
+        if(fail_count < std::numeric_limits<std::uint64_t>::max())
+            ++fail_count;
+        
+        fail_time = std::chrono::system_clock::now();
+
+        // Lock the server after LOCK_FAIL_COUNT fails
+        if(++lock_fail_count == LOCK_FAIL_COUNT) {
+            lock_fail_count = 0;
+
+            lock_time = fail_time + std::chrono::minutes(5);
+        }
+
+        // Increment this endpoint's fail count
+        std::uint8_t& ban_fails = ban_fail_count[endpoint.address()];
+        if(ban_fails < std::numeric_limits<std::uint8_t>::max())
+            ++ban_fails;
+
+        // Log failure
+        const auto local_time = std::chrono::system_clock::to_time_t(fail_time);
+        if(auth_log_file.is_open()) {
+            auth_log_file << '['
+                << std::put_time(std::localtime(&local_time), "%c")
+                << "] " << endpoint << std::endl;
+            auth_log_file.flush();
+        }
+
+        // Log ban
+        if(ban_log_file.is_open() && ban_fails == BAN_FAIL_COUNT) {
+            ban_log_file << '['
+                << std::put_time(std::localtime(&local_time), "%c")
+                << "] " << endpoint.address() << std::endl;
+            ban_log_file.flush();
+        }
+    }
+
+    bool server::is_locked() const {
+        return std::chrono::system_clock::now() <= lock_time;
+    }
+
+    void server::unlock(const asio::ip::tcp::endpoint& endpoint) {
+        lock_fail_count = 0;
+
+        lock_time = std::chrono::system_clock::time_point();
+
+        ban_fail_count[endpoint.address()] = 0;
     }
 }

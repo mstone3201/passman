@@ -12,6 +12,9 @@ const DOWN_ARROW_SYMBOL = "⮟";
 
 // Document constants
 
+const AUTH_INFO_FAILS_ELEMENT = document.getElementById("auth_info_fails");
+const AUTH_INFO_LOCK_ELEMENT = document.getElementById("auth_info_lock");
+
 const GENERATE_TEXT_ELEMENT = document.getElementById("generate_text");
 const GENERATE_BUTTON_ELEMENT = document.getElementById("generate_button");
 const PASSWORD_STRENGTH_ELEMENT = document.getElementById("password_strength");
@@ -149,6 +152,14 @@ class Store {
     storeHash;
 
     async load(serverPassword, clientPassword) {
+        serverPassword = serverPassword.trim();
+        clientPassword = clientPassword.trim();
+
+        if(!serverPassword)
+            serverPassword = "none";
+        if(!clientPassword)
+            clientPassword = "none";
+
         const response = await fetch("store", {
             "headers": {
                 "Server-Token": serverPassword
@@ -193,6 +204,14 @@ class Store {
     }
 
     async commit(serverPassword, clientPassword) {
+        serverPassword = serverPassword.trim();
+        clientPassword = clientPassword.trim();
+
+        if(!serverPassword)
+            serverPassword = "none";
+        if(!clientPassword)
+            clientPassword = "none";
+
         const decompressed = new TextEncoder().encode(
             JSON.stringify(Array.from(this.entries)));
 
@@ -538,7 +557,11 @@ function generateEvent() {
 
     GENERATE_TEXT_ELEMENT.value = password;
     PASSWORD_STRENGTH_ELEMENT.innerText = "Length: " + password.length +
-        ", Combinations: " + combinations;
+        ", Combinations: " + combinations.toLocaleString("en-US",
+            combinations >= 1e9 ? {
+                notation: "scientific",
+                maximumFractionDigits: 1
+            } : {}).toLowerCase();
 }
 
 function searchEvent(regex) {
@@ -604,13 +627,58 @@ function sortStoreEvent() {
         sortOrder[sortOrder.category] ? UP_ARROW_SYMBOL : DOWN_ARROW_SYMBOL;
 }
 
+async function getAuthInfoEvent() {
+    try {
+        const response = await fetch("auth_info");
+        if(!response.ok)
+            throw new Error("Authentication info not found");
+
+        const data = new BigUint64Array(await response.arrayBuffer());
+        
+        AUTH_INFO_FAILS_ELEMENT.innerText = "Failed Authentication Count: "
+            + data[0];
+        if(data[1])
+            AUTH_INFO_FAILS_ELEMENT.innerText += ", Last Fail Time: "
+                + new Date(Number(data[1])).toLocaleString("en-US");
+
+        if(data[2] > Date.now()) {
+            function countdown() {
+                const seconds = Math.floor((Number(data[2]) - Date.now())
+                    / 1000);
+                if(seconds >= 0) {
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds - minutes * 60;
+
+                    const leadingZero = remainingSeconds < 10 ? "0" : "";
+
+                    AUTH_INFO_LOCK_ELEMENT.innerText = ", Lock Duration: "
+                        + minutes + ":" + leadingZero + remainingSeconds;
+
+                    setTimeout(countdown, 1000);
+                } else
+                    AUTH_INFO_LOCK_ELEMENT.innerText = "";
+            };
+            countdown();
+        }
+    } catch(e) {
+        alert("Error occurred while getting authentication info");
+        return;
+    }
+}
+
 // Initialization
 
 GENERATE_BUTTON_ELEMENT.addEventListener("mousedown", generateEvent);
 ADD_GROUP_BUTTON_ELEMENT.addEventListener("mousedown", addGroupEvent);
-LOAD_BUTTON_ELEMENT.addEventListener("mousedown", loadEvent);
+LOAD_BUTTON_ELEMENT.addEventListener("mousedown", async () => {
+    await loadEvent();
+    getAuthInfoEvent();
+});
 INSERT_BUTTON_ELEMENT.addEventListener("mousedown", insertEvent);
-COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", commitEvent);
+COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", async () => {
+    await commitEvent();
+    getAuthInfoEvent();
+});
 
 SEARCH_QUERY_ELEMENT.addEventListener("input", () => {
     searchEvent(SEARCH_QUERY_ELEMENT.value);
@@ -649,4 +717,5 @@ STORE_ELEMENT.querySelector("thead th#" + sortOrder.category).classList
 for(const arrow of STORE_ELEMENT.querySelectorAll("thead th #arrow"))
     arrow.innerText = DOWN_ARROW_SYMBOL;
 
+getAuthInfoEvent();
 generateEvent();

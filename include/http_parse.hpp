@@ -7,9 +7,6 @@
 
 #include "http.hpp"
 
-// TODO: remove debug print statements
-#include <iostream>
-
 namespace passman::http {
     namespace {
         const std::unordered_map<std::string_view, request_method>
@@ -31,7 +28,8 @@ namespace passman::http {
             {"/", resource::INDEX_HTML},
             {"/index.html", resource::INDEX_HTML},
             {"/index.js", resource::INDEX_JS},
-            {"/store", resource::STORE}
+            {"/store", resource::STORE},
+            {"/auth_info", resource::AUTH_INFO}
         };
 
         enum class http_header {
@@ -50,6 +48,7 @@ namespace passman::http {
     enum class parse_result {
         VALID,
         INVALID,
+        AUTH_FAIL,
         INCOMPLETE
     };
 
@@ -58,7 +57,8 @@ namespace passman::http {
         struct promise_type {
             enum class return_type {
                 VALID,
-                INVALID
+                INVALID,
+                AUTH_FAIL
             };
 
             parser_coroutine get_return_object() {
@@ -78,6 +78,9 @@ namespace passman::http {
                     break;
                 case return_type::INVALID:
                     result = parse_result::INVALID;
+                    break;
+                case return_type::AUTH_FAIL:
+                    result = parse_result::AUTH_FAIL;
                     break;
                 }
             }
@@ -114,7 +117,8 @@ namespace passman::http {
     inline parser_coroutine parse_request(
         std::string_view& buffer_view,
         request& http_request,
-        std::string_view server_token
+        std::string_view server_token,
+        bool is_locked
     ) {
         using return_type =
             passman::http::parser_coroutine::promise_type::return_type;
@@ -177,10 +181,6 @@ namespace passman::http {
             http_request.resource = resource_it->second;
         else {
             http_request.resource = resource::INVALID;
-
-            std::cout << "Invalid " << method_str << " request for " << uri
-                << std::endl;;
-
             co_return return_type::INVALID;
         }
 
@@ -283,7 +283,7 @@ namespace passman::http {
                         break;
                     }
                 case http_header::SERVER_TOKEN:
-                    if(header_value == server_token)
+                    if(!is_locked && header_value == server_token)
                         http_request.authorized = true;
                     break;
                 case http_header::STORE_HASH:
@@ -299,7 +299,7 @@ namespace passman::http {
         if(http_request.method == request_method::POST) {
             // Only allow POSTs from authorized requests
             if(!http_request.authorized)
-                co_return return_type::INVALID;
+                co_return return_type::AUTH_FAIL;
 
             if(content_length) {
                 std::string body;
@@ -318,13 +318,6 @@ namespace passman::http {
                 http_request.body = std::move(body);
             }
         }
-
-        if(http_request.authorized)
-            std::cout << "Authorized ";
-        std::cout << method_str << " request for " << uri;
-        if(http_request.body)
-            std::cout << " with body (" << http_request.body->size() << ")";
-        std::cout << std::endl;
         
         co_return return_type::VALID;
     }
