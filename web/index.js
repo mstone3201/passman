@@ -7,8 +7,8 @@ const TAG_SIZE = 128;
 const KDF_ITERATIONS = 1000000;
 
 const DELETE_SYMBOL = "X";
-const UP_ARROW_SYMBOL = "⮝";
-const DOWN_ARROW_SYMBOL = "⮟";
+const UP_ARROW_SYMBOL = "▲";
+const DOWN_ARROW_SYMBOL = "▼";
 
 // Document constants
 
@@ -648,13 +648,21 @@ function sortStoreEvent() {
     const entries = Array.from(bodyElement.querySelectorAll("tr"));
     entries.sort((a, b) => {
         const left = a.entry[sortOrder.category];
-        const right = b.entry[sortOrder.category];
+        const lowerLeft = left.toLowerCase ? left.toLowerCase() : left;
 
+        const right = b.entry[sortOrder.category];
+        const lowerRight = right.toLowerCase ? right.toLowerCase() : right;
+
+        if(lowerLeft < lowerRight)
+            return sortOrder[sortOrder.category] ? 1 : -1;
+        if(lowerLeft > lowerRight)
+            return sortOrder[sortOrder.category] ? -1 : 1;
+        
         if(left < right)
             return sortOrder[sortOrder.category] ? 1 : -1;
         if(left > right)
             return sortOrder[sortOrder.category] ? -1 : 1;
-        
+
         return 0;
     });
 

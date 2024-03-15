@@ -33,33 +33,31 @@
             .groups {
                 margin-top: 5px;
                 margin-bottom: 5px;
+            }
 
-                .group {
-                    textarea {
-                        vertical-align: middle;
-                        margin-right: 5px;
-                        resize: none;
-                        word-break: break-all;
-                    }
+            .groups .group textarea {
+                vertical-align: middle;
+                margin-right: 5px;
+                resize: none;
+                word-break: break-all;
+            }
 
-                    input[type="text"] {
-                        vertical-align: middle;
-                        margin: 5px;
-                        text-align: center;
-                        width: 30px;
-                    }
+            .groups .group input[type="text"] {
+                vertical-align: middle;
+                margin: 5px;
+                text-align: center;
+                width: 30px;
+            }
 
-                    button {
-                        vertical-align: middle;
-                        margin-left: 5px;
-                        color: rgb(255, 0, 0);
-                        font-weight: bold;
-                    }
-                }
+            .groups .group button {
+                vertical-align: middle;
+                margin-left: 5px;
+                color: rgb(255, 0, 0);
+                font-weight: bold;
+            }
 
-                .group:not(:first-child) {
-                    margin-top: 5px;
-                }
+            .groups .group:not(:first-child) {
+                margin-top: 5px;
             }
 
             input.hidden {
@@ -69,26 +67,26 @@
             table.insert {
                 display: inline-block;
                 border-collapse: collapse;
+            }
 
-                tbody {
-                    background-color: rgb(255, 255, 255);
+            table.insert tbody {
+                background-color: rgb(255, 255, 255);
+            }
 
-                    td {
-                        border: 3px solid rgb(80, 80, 80);
-                        padding: 4px;
-                    }
+            table.insert tbody td {
+                border: 3px solid rgb(80, 80, 80);
+                padding: 4px;
+            }
 
-                    td:last-child {
-                        border: none;
-                        background-color: rgb(220, 229, 233);
-                    }
-                }
+            table.insert tbody td:last-child {
+                border: none;
+                background-color: rgb(220, 229, 233);
+            }
 
-                input {
-                    border: none;
-                    background-color: inherit;
-                    width: 80px;
-                }
+            table.insert input {
+                border: none;
+                background-color: inherit;
+                width: 80px;
             }
 
             .search {
@@ -97,89 +95,89 @@
 
             table.store {
                 border-collapse: collapse;
+            }
 
-                col.first {
-                    border-left: 3px solid rgb(80, 80, 80);
-                }
+            table.store col.first {
+                border-left: 3px solid rgb(80, 80, 80);
+            }
 
-                col.last {
-                    border-right: 3px solid rgb(80, 80, 80);
-                }
+            table.store col.last {
+                border-right: 3px solid rgb(80, 80, 80);
+            }
 
-                thead {
-                    background-color: rgb(180, 180, 180);
+            table.store thead {
+                background-color: rgb(180, 180, 180);
+            }
 
-                    th {
-                        border-top: 3px solid rgb(80, 80, 80);
+            table.store thead th {
+                border-top: 3px solid rgb(80, 80, 80);
+            }
 
-                        a {
-                            color: inherit;
-                            text-decoration: none;
-                        }
+            table.store thead th #sort_button {
+                color: inherit;
+                text-decoration: none;
+            }
 
-                        #arrow {
-                            font-size: xx-small;
-                        }
-                    }
+            table.store thead th #sort_button:hover {
+                cursor: pointer;
+            }
 
-                    th.sort {
-                        background-color: rgb(165, 165, 165);
-                    }
-                }
+            table.store thead th #arrow {
+                font-size: x-small;
+            }
 
-                tbody {
-                    background-color: rgb(255, 255, 255);
-                    
-                    tr:not(.show) {
-                        display: none;
-                    }
+            table.store thead th.sort {
+                background-color: rgb(165, 165, 165);
+            }
 
-                    tr.show:first-child {
-                        th, td:not(:last-child) {
-                            border-top: 2px solid rgb(80, 80, 80);
-                        }
-                    }
+            table.store tbody {
+                background-color: rgb(255, 255, 255);
+            }
+                
+            table.store tbody tr:not(.show) {
+                display: none;
+            }
 
-                    tr.show:last-child {
-                        th, td:not(:last-child) {
-                            border-bottom: 2px solid rgb(80, 80, 80);
-                        }
-                    }
+            table.store tbody tr.show:first-child th, table.store tbody tr.show:first-child td:not(:last-child) {
+                border-top: 2px solid rgb(80, 80, 80);
+            }
 
-                    th:last-child, td:last-child {
-                        border: none;
-                        background-color: rgb(220, 229, 233);
-                    }
+            table.store tbody tr.show:last-child th, table.store tbody tr.show:last-child td:not(:last-child) {
+                border-bottom: 2px solid rgb(80, 80, 80);
+            }
 
-                    td input[type="text"].date {
-                        text-align: center;
-                    }
-                }
+            table.store tbody th:last-child, table.store tbody td:last-child {
+                border: none;
+                background-color: rgb(220, 229, 233);
+            }
 
-                tfoot {
-                    background-color: rgb(210, 210, 210);
+            table.store tbody td input[type="text"].date {
+                text-align: center;
+            }
 
-                    td {
-                        border-bottom: 3px solid rgb(80, 80, 80);
-                        text-align: center;
-                    }
-                }
+            table.store tfoot {
+                background-color: rgb(210, 210, 210);
+            }
 
-                th, td {
-                    border: 1px solid rgb(80, 80, 80);
-                    padding: 5px;
-                }
+            table.store tfoot td {
+                border-bottom: 3px solid rgb(80, 80, 80);
+                text-align: center;
+            }
 
-                input {
-                    border: none;
-                    background-color: inherit;
-                    width: 80px;
-                }
+            table.store th, table.store td {
+                border: 1px solid rgb(80, 80, 80);
+                padding: 5px;
+            }
 
-                button {
-                    color: rgb(255, 0, 0);
-                    font-weight: bold;
-                }
+            table.store input {
+                border: none;
+                background-color: inherit;
+                width: 80px;
+            }
+
+            table.store button {
+                color: rgb(255, 0, 0);
+                font-weight: bold;
             }
         </style>
     </head>
@@ -192,7 +190,7 @@
         <div id="groups" class="groups"></div>
         <button id="add_group_button">New Group</button>
         <br><br>
-        <input type="text" class="hidden" autocomplete="username">
+        <input type="text" class="hidden" name="username" autocomplete="username">
         <input type="password" id="server_password" placeholder="Server password" autocomplete="current-password">
         <br>
         <input type="password" id="client_password" placeholder="Client password" autocomplete="current-password">
@@ -224,23 +222,23 @@
             <thead>
                 <tr>
                     <th id="name">
-                        <a href="#">
+                        <span id="sort_button">
                             Name
                             <span id="arrow"></span>
-                        </a>
+                        </span>
                     </th>
                     <th>Tags</th>
                     <th id="date">
-                        <a href="#">
+                        <span id="sort_button">
                             Date
                             <span id="arrow"></span>
-                        </a>
+                        </span>
                     </th>
                     <th id="username">
-                        <a href="#">
+                        <span id="sort_button">
                             Username
                             <span id="arrow"></span>
-                        </a>
+                        </span>
                     </th>
                     <th>Password</th>
                 </tr>
