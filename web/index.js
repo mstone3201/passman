@@ -60,6 +60,7 @@ class Entry {
 
         const dateTextElement = document.createElement("input");
         dateTextElement.type = "text";
+        dateTextElement.name = "date";
         dateTextElement.classList.add("date");
         dateTextElement.readOnly = true;
         dateTextElement.value = getDateString(this.date);
@@ -69,6 +70,8 @@ class Entry {
 
         const nameTextElement = document.createElement("input");
         nameTextElement.type = "text";
+        nameTextElement.name = "name";
+        nameTextElement.autocomplete = "off";
         nameTextElement.value = this.name;
         nameTextElement.addEventListener("input", () => {
             this.name = nameTextElement.value.trim();
@@ -86,6 +89,8 @@ class Entry {
 
         const tagsTextElement = document.createElement("input");
         tagsTextElement.type = "text";
+        tagsTextElement.name = "tags";
+        tagsTextElement.autocomplete = "off";
         tagsTextElement.value = this.tags.join(", ");
         tagsTextElement.addEventListener("input", () => {
             this.tags = [];
@@ -115,6 +120,8 @@ class Entry {
 
         const usernameTextElement = document.createElement("input");
         usernameTextElement.type = "text";
+        usernameTextElement.name = "username";
+        usernameTextElement.autocomplete = "off";
         usernameTextElement.value = this.username;
         usernameTextElement.addEventListener("input", () => {
             this.username = usernameTextElement.value.trim();
@@ -132,6 +139,8 @@ class Entry {
 
         const passwordTextElement = document.createElement("input");
         passwordTextElement.type = "password";
+        passwordTextElement.name = "password";
+        passwordTextElement.autocomplete = "off";
         passwordTextElement.value = this.password;
         passwordTextElement.addEventListener("input", () => {
             passwordTextElement.type = "password";
@@ -301,6 +310,7 @@ class Group {
         divElement.classList.add("group");
 
         const optionsElement = document.createElement("textarea");
+        optionsElement.name = "options";
         optionsElement.cols = 32;
         optionsElement.rows = 4;
         optionsElement.placeholder = "Enter characters";
@@ -313,12 +323,13 @@ class Group {
         });
         divElement.appendChild(optionsElement);
 
-        const labelElement = document.createElement("label");
+        const labelElement = document.createElement("span");
         labelElement.innerText = "Count:";
         divElement.appendChild(labelElement);
 
         const countElement = document.createElement("input");
         countElement.type = "text";
+        countElement.name = "count";
         countElement.value = this.count;
         countElement.addEventListener("input", () => {
             const val = Number(countElement.value);
