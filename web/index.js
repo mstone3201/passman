@@ -76,6 +76,9 @@ class Entry {
             this.date = Date.now();
             dateTextElement.value = getDateString(this.date); 
         });
+        nameTextElement.addEventListener("focusout", () => {
+            nameTextElement.value = this.name;
+        });
         nameElement.appendChild(nameTextElement);
 
         const tagsElement = document.createElement("td");
@@ -97,6 +100,9 @@ class Entry {
             this.date = Date.now();
             dateTextElement.value = getDateString(this.date);
         });
+        tagsTextElement.addEventListener("focusout", () => {
+            tagsTextElement.value = this.tags.join(", ");
+        });
         tagsElement.appendChild(tagsTextElement);
 
         const dateElement = document.createElement("td");
@@ -116,19 +122,32 @@ class Entry {
             this.date = Date.now();
             dateTextElement.value = getDateString(this.date);
         });
+        usernameTextElement.addEventListener("focusout", () => {
+            usernameTextElement.value = this.username;
+        });
         usernameElement.appendChild(usernameTextElement);
 
         const passwordElement = document.createElement("td");
         rowElement.appendChild(passwordElement);
 
         const passwordTextElement = document.createElement("input");
-        passwordTextElement.type = "text";
+        passwordTextElement.type = "password";
         passwordTextElement.value = this.password;
         passwordTextElement.addEventListener("input", () => {
+            passwordTextElement.type = "password";
+
             this.password = passwordTextElement.value.trim();
 
             this.date = Date.now();
             dateTextElement.value = getDateString(this.date);
+        });
+        passwordTextElement.addEventListener("focusin", () => {
+            passwordTextElement.type = "text";
+            passwordTextElement.select();
+        });
+        passwordTextElement.addEventListener("focusout", () => {
+            passwordTextElement.type = "password";
+            passwordTextElement.value = this.password;
         });
         passwordElement.appendChild(passwordTextElement);
 
@@ -289,6 +308,9 @@ class Group {
         optionsElement.addEventListener("input", () => {
             this.options = optionsElement.value.replaceAll(/\s/g, "");
         });
+        optionsElement.addEventListener("focusout", () => {
+            optionsElement.value = this.options;
+        });
         divElement.appendChild(optionsElement);
 
         const labelElement = document.createElement("label");
@@ -303,6 +325,9 @@ class Group {
 
             if(!isNaN(val) && val >= 0)
                 this.count = val;
+        });
+        countElement.addEventListener("focusout", () => {
+            countElement.value = this.count;
         });
         divElement.appendChild(countElement);
 
@@ -512,9 +537,18 @@ async function loadEvent() {
 }
 
 function insertEvent() {
-    store.insert(new Entry(INSERT_NAME_ELEMENT.value,
-        INSERT_TAGS_ELEMENT.value.split(","), Date.now(),
-        INSERT_USERNAME_ELEMENT.value, INSERT_PASSWORD_ELEMENT.value));
+    tags = [];
+
+    for(const tag of INSERT_TAGS_ELEMENT.value.split(",")) {
+        const trimmed = tag.trim();
+
+        if(trimmed)
+            tags.push(trimmed);
+    }
+
+    store.insert(new Entry(INSERT_NAME_ELEMENT.value.trim(), tags, Date.now(),
+        INSERT_USERNAME_ELEMENT.value.trim(),
+        INSERT_PASSWORD_ELEMENT.value.trim()));
         
     store.draw();
 
@@ -668,11 +702,44 @@ async function getAuthInfoEvent() {
 
 // Initialization
 
+GENERATE_TEXT_ELEMENT.addEventListener("focusin", () => {
+    GENERATE_TEXT_ELEMENT.select();
+});
 GENERATE_BUTTON_ELEMENT.addEventListener("mousedown", generateEvent);
 ADD_GROUP_BUTTON_ELEMENT.addEventListener("mousedown", addGroupEvent);
+SERVER_PASSWORD_ELEMENT.addEventListener("focusout", () => {
+    SERVER_PASSWORD_ELEMENT.value = SERVER_PASSWORD_ELEMENT.value.trim();
+});
+CLIENT_PASSWORD_ELEMENT.addEventListener("focusout", () => {
+    CLIENT_PASSWORD_ELEMENT.value = CLIENT_PASSWORD_ELEMENT.value.trim();
+});
 LOAD_BUTTON_ELEMENT.addEventListener("mousedown", async () => {
     await loadEvent();
     getAuthInfoEvent();
+});
+INSERT_NAME_ELEMENT.addEventListener("focusout", () => {
+    INSERT_NAME_ELEMENT.value = INSERT_NAME_ELEMENT.value.trim();
+});
+INSERT_USERNAME_ELEMENT.addEventListener("focusout", () => {
+    INSERT_USERNAME_ELEMENT.value = INSERT_USERNAME_ELEMENT.value.trim();
+});
+INSERT_TAGS_ELEMENT.addEventListener("focusout", () => {
+    tags = [];
+
+    for(const tag of INSERT_TAGS_ELEMENT.value.split(",")) {
+        const trimmed = tag.trim();
+
+        if(trimmed)
+            tags.push(trimmed);
+    }
+
+    INSERT_TAGS_ELEMENT.value = tags.join(", ");
+});
+INSERT_PASSWORD_ELEMENT.addEventListener("focusin", () => {
+    INSERT_PASSWORD_ELEMENT.select();
+});
+INSERT_PASSWORD_ELEMENT.addEventListener("focusout", () => {
+    INSERT_PASSWORD_ELEMENT.value = INSERT_PASSWORD_ELEMENT.value.trim();
 });
 INSERT_BUTTON_ELEMENT.addEventListener("mousedown", insertEvent);
 COMMIT_BUTTON_ELEMENT.addEventListener("mousedown", async () => {
