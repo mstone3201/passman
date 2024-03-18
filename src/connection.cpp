@@ -127,6 +127,8 @@ namespace passman {
                 server.auth_fail(ssl_socket.next_layer().remote_endpoint());
             }
             break;
+        case http::resource::INVALID:
+            break;
         }
 
         // Reset lock status

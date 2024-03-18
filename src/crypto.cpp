@@ -1,5 +1,7 @@
 #include "crypto.hpp"
 
+#include <stdexcept>
+
 #define OPENSSL_NO_DEPRECATED
 
 #include <openssl/evp.h>
@@ -24,7 +26,7 @@ namespace {
             return "wb";
         }
 
-        throw std::exception("Unknown file mode");
+        throw std::runtime_error("Unknown file mode");
     }
 
     class bio_file {
@@ -35,7 +37,7 @@ namespace {
                     get_bio_file_mode_str(file_mode).c_str()))
         {
             if(!bio)
-                throw std::exception("Failed to open file");
+                throw std::runtime_error("Failed to open file");
         }
         bio_file(const bio_file&) = delete;
 
@@ -69,7 +71,7 @@ namespace {
             return "SHA2-512";
         }
 
-        throw std::exception("Unknown hash algorithm");
+        throw std::runtime_error("Unknown hash algorithm");
     }
 
     class hash {
@@ -79,7 +81,7 @@ namespace {
                     get_hash_algorithm_str(algorithm).c_str(), nullptr)
         ) {
             if(!evp_md)
-                throw std::exception("Failed to create hash");
+                throw std::runtime_error("Failed to create hash");
         }
         hash(const hash&) = delete;
 
@@ -92,29 +94,29 @@ namespace {
         std::string digest(std::string_view data) const {
             int digest_size = EVP_MD_get_size(evp_md);
             if(digest_size == -1)
-                throw std::exception("Failed to get size of digest");
+                throw std::runtime_error("Failed to get size of digest");
 
             std::string result(digest_size, '\0');
 
             EVP_MD_CTX* context = EVP_MD_CTX_new();
             if(!context)
-                throw std::exception("Failed to create digest context");
+                throw std::runtime_error("Failed to create digest context");
 
             if(!EVP_DigestInit(context, evp_md)) {
                 EVP_MD_CTX_free(context);
-                throw std::exception("Failed to initialize digest operation");
+                throw std::runtime_error("Failed to initialize digest operation");
             }
 
             if(!EVP_DigestUpdate(context, data.data(), data.size())) {
                 EVP_MD_CTX_free(context);
-                throw std::exception("Failed to update digest operation");
+                throw std::runtime_error("Failed to update digest operation");
             }
 
             if(!EVP_DigestFinal(context,
                 reinterpret_cast<unsigned char*>(result.data()), nullptr))
             {
                 EVP_MD_CTX_free(context);
-                throw std::exception("Failed to finalize digest operation");
+                throw std::runtime_error("Failed to finalize digest operation");
             }
 
             EVP_MD_CTX_free(context);
@@ -144,7 +146,7 @@ namespace {
             return "DES-EDE3-CBC";
         }
 
-        throw std::exception("Unknown cipher algorithm");
+        throw std::runtime_error("Unknown cipher algorithm");
     }
 
     class cipher {
@@ -154,7 +156,7 @@ namespace {
                     get_cipher_algorithm_str(algorithm).c_str(), nullptr)
         ) {
             if(!evp_cipher)
-                throw std::exception("Failed to create cipher");
+                throw std::runtime_error("Failed to create cipher");
         }
         cipher(const cipher&) = delete;
 
@@ -192,7 +194,7 @@ namespace {
             return 8192;
         }
 
-        throw std::exception("Unknown key size");
+        throw std::runtime_error("Unknown key size");
     }
 
     class rsa_keypair {
@@ -201,7 +203,7 @@ namespace {
             evp_pkey(EVP_RSA_gen(get_rsa_key_size(size))
         ) {
             if(!evp_pkey)
-                throw std::exception("Failed to create rsa keypair");
+                throw std::runtime_error("Failed to create rsa keypair");
         }
         rsa_keypair(const rsa_keypair&) = delete;
 
@@ -221,7 +223,7 @@ namespace {
                 reinterpret_cast<const unsigned char*>(password.data()),
                 password.size(), nullptr, nullptr))
             {
-                throw std::exception("Failed to write private key");
+                throw std::runtime_error("Failed to write private key");
             }
         }
 
@@ -247,7 +249,7 @@ namespace {
             return "ffdhe8192";
         }
 
-        throw std::exception("Unknown key size");
+        throw std::runtime_error("Unknown key size");
     }
 
     class dh_keypair {
@@ -256,7 +258,7 @@ namespace {
             EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "DH",
                 nullptr);
             if(!context)
-                throw std::exception("Failed to create DH keypair context");
+                throw std::runtime_error("Failed to create DH keypair context");
 
             // Set key generation parameters
             std::string group = get_dh_group_str(size);
@@ -269,16 +271,16 @@ namespace {
             // Generate key
             if(EVP_PKEY_keygen_init(context) != 1) {
                 EVP_PKEY_CTX_free(context);
-                throw std::exception("Failed to initialize DH keypair\
+                throw std::runtime_error("Failed to initialize DH keypair\
                     generation");
             }
             if(!EVP_PKEY_CTX_set_params(context, parameters)) {
                 EVP_PKEY_CTX_free(context);
-                throw std::exception("Failed to set DH keypair parameters");
+                throw std::runtime_error("Failed to set DH keypair parameters");
             }
             if(EVP_PKEY_generate(context, &evp_pkey) != 1 || !evp_pkey) {
                 EVP_PKEY_CTX_free(context);
-                throw std::exception("Failed to create DH keypair");
+                throw std::runtime_error("Failed to create DH keypair");
             }
 
             EVP_PKEY_CTX_free(context);
@@ -298,7 +300,7 @@ namespace {
             if(!PEM_write_bio_PrivateKey(bio.native_handle(), evp_pkey, nullptr,
                 nullptr, 0, nullptr, nullptr))
             {
-                throw std::exception("Failed to write DH key");
+                throw std::runtime_error("Failed to write DH key");
             }
         }
 
@@ -318,19 +320,19 @@ namespace {
             rsa_keypair& keypair) : x509(X509_new())
         {
             if(!x509)
-                throw std::exception("Failed to create x509 certificate");
+                throw std::runtime_error("Failed to create x509 certificate");
 
             // X509_getm_notBefore will not fail
             if(!X509_gmtime_adj(X509_getm_notBefore(x509), 0))
-                throw std::exception("Failed to set x509 certificate not before\
+                throw std::runtime_error("Failed to set x509 certificate not before\
                     time");
             // X509_getm_notAfter will not fail
             if(!X509_gmtime_adj(X509_getm_notAfter(x509), 315360000))
-                throw std::exception("Failed to set x509 certificate not after\
+                throw std::runtime_error("Failed to set x509 certificate not after\
                     time");
 
             if(!X509_set_pubkey(x509, keypair.native_handle()))
-                throw std::exception("Failed to set x509 certificate public\
+                throw std::runtime_error("Failed to set x509 certificate public\
                     key");
 
             // X509_get_subject_name will not fail
@@ -338,24 +340,24 @@ namespace {
             if(!X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC,
                 reinterpret_cast<const unsigned char*>("passman"), -1, -1, 0))
             {
-                throw std::exception("Failed to set x509 organization");
+                throw std::runtime_error("Failed to set x509 organization");
             }
             if(!X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
                 reinterpret_cast<const unsigned char*>(hostname.c_str()), -1,
                 -1, 0))
             {
-                throw std::exception("Failed to set x509 certificate common\
+                throw std::runtime_error("Failed to set x509 certificate common\
                     name");
             }
 
             if(!X509_set_issuer_name(x509, name))
-                throw std::exception("Failed to set x509 certificate issuer\
+                throw std::runtime_error("Failed to set x509 certificate issuer\
                     name");
 
             if(!X509_sign(x509, keypair.native_handle(),
                 hash_sha2_512.native_handle()))
             {
-                throw std::exception("Failed to sign x509 certificate");
+                throw std::runtime_error("Failed to sign x509 certificate");
             }
         }
         x509_certificate(const x509_certificate&) = delete;
@@ -370,7 +372,7 @@ namespace {
             bio_file bio(filename, bio_file_mode::WRITE);
 
             if(!PEM_write_bio_X509(bio.native_handle(), x509))
-                throw std::exception("Failed to write certificate");
+                throw std::runtime_error("Failed to write certificate");
         }
 
         const X509* native_handle() const {
@@ -409,7 +411,7 @@ namespace passman::crypto {
     std::string base64_encode(std::string_view data) {
         // Limit size of data to uint32_t max and avoid overflow
         if(data.size() >= std::numeric_limits<uint32_t>::max())
-            throw std::exception("Data too large to base64 encode");
+            throw std::runtime_error("Data too large to base64 encode");
 
         std::string result(data.size() / 48 * 64
             + (data.size() % 48 + 2) / 3 * 4 + 1, '\0');

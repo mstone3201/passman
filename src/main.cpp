@@ -22,7 +22,7 @@ void cin_echo(bool echo) {
     #else
     termios term;
     if(!tcgetattr(STDIN_FILENO, &term)) {
-        term.c_lflag = mode ? term.c_lflag | ECHO : term.c_lflag & ~ECHO;
+        term.c_lflag = echo ? term.c_lflag | ECHO : term.c_lflag & ~ECHO;
         tcsetattr(STDIN_FILENO, TCSANOW, &term);
     }
     #endif
