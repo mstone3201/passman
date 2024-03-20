@@ -41,9 +41,13 @@ namespace passman {
         if(!std::filesystem::exists(crypto::PRIVATE_KEY_FILENAME)
             || !std::filesystem::exists(crypto::CERTIFICATE_FILENAME))
         {
+            std::string hostname;
+            std::cout << "Enter Server IP Address: ";
+            std::getline(std::cin, hostname);
+
             std::cout << "Generating RSA keypair and certificate..."
                 << std::endl;
-            crypto::generate_certificate("passman", server::password);
+            crypto::generate_certificate(hostname, server::password);
         }
         if(!std::filesystem::exists(crypto::DH_FILENAME)) {
             std::cout << "Generating DH parameters..." << std::endl;
