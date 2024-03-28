@@ -32,6 +32,7 @@ const INSERT_PASSWORD_ELEMENT = document.getElementById("insert_password");
 const INSERT_BUTTON_ELEMENT = document.getElementById("insert_button");
 
 const COMMIT_BUTTON_ELEMENT = document.getElementById("commit_button");
+const COMMIT_TIME_ELEMENT = document.getElementById("commit_time");
 const SEARCH_QUERY_ELEMENT = document.getElementById("search_query");
 const STORE_ELEMENT = document.getElementById("store");
 const STORE_TOTAL_ELEMENT = document.getElementById("store_total");
@@ -177,6 +178,7 @@ class Entry {
 
 class Store {
     entries = new Set();
+    timestamp;
     storeHash;
 
     async load(serverPassword, clientPassword) {
@@ -200,6 +202,8 @@ class Store {
         if(!data.byteLength) {
             this.entries.clear();
             
+            this.timestamp = undefined;
+
             const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
                 new Uint8Array()));
             this.storeHash = btoa(String.fromCodePoint(...hash));
@@ -221,9 +225,11 @@ class Store {
         const store = JSON.parse(new TextDecoder().decode(decompressed));
 
         this.entries.clear();
-        for(const entry of store)
+        for(const entry of store.entries)
             this.entries.add(new Entry(entry.name, entry.tags, entry.date,
                 entry.username, entry.password));
+
+        this.timestamp = store.timestamp;
 
         // Hash the store
         const hash = new Uint8Array(await crypto.subtle.digest("SHA-512",
@@ -241,7 +247,10 @@ class Store {
             clientPassword = "none";
 
         const decompressed = new TextEncoder().encode(
-            JSON.stringify(Array.from(this.entries)));
+            JSON.stringify({
+                "entries": Array.from(this.entries),
+                "timestamp": this.timestamp
+            }));
 
         // Compress
         const plaintext = await compress(decompressed);
@@ -532,6 +541,10 @@ async function loadEvent() {
         await store.load(SERVER_PASSWORD_ELEMENT.value,
             CLIENT_PASSWORD_ELEMENT.value);
 
+        if(store.timestamp)
+            COMMIT_TIME_ELEMENT.innerText = "Last committed "
+                + new Date(store.timestamp).toLocaleString("en-US");
+
         store.draw();
     } catch(e) {
         alert("Error occurred while loading store");
@@ -570,8 +583,13 @@ function insertEvent() {
 
 async function commitEvent() {
     try {
+        store.timestamp = Date.now();
+
         await store.commit(SERVER_PASSWORD_ELEMENT.value,
             CLIENT_PASSWORD_ELEMENT.value);
+
+        COMMIT_TIME_ELEMENT.innerText = "Last committed "
+            + new Date(store.timestamp).toLocaleString("en-US");
     } catch(e) {
         alert("Error committing store");
         return;
@@ -688,7 +706,7 @@ async function getAuthInfoEvent() {
 
         const data = new BigUint64Array(await response.arrayBuffer());
         
-        AUTH_INFO_FAILS_ELEMENT.innerText = "Failed Authentication Count: "
+        AUTH_INFO_FAILS_ELEMENT.innerText = "Failed Authentications: "
             + data[0];
         if(data[1])
             AUTH_INFO_FAILS_ELEMENT.innerText += ", Last Fail Time: "
