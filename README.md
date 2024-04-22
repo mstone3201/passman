@@ -11,6 +11,7 @@ passman is a cross-platform password manager designed for private use. The backe
 * End-to-end AES-256-GCM encyption for the store
 * PBKDF2 key derivation from the client password
 * Server enforced store consistency
+* Random password generation
 
 ## Installation
 
